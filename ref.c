@@ -129,14 +129,14 @@ static inline bool is_root_uid(void) {
 
 // Funzione per verificare se un percorso è protetto
 bool is_protected_path(const char *path) {
-    struct path_node *cur_node;
+    struct path_node *cur_node;  // Rinominato da 'current'
     bool protected = false;
 
     spin_lock(&monitor.lock);
 
     // Scorre la lista per cercare una corrispondenza
     cur_node = monitor.head;
-    while (current) {
+    while (cur_node) {
         if (strncmp(cur_node->path, path, strlen(cur_node->path)) == 0) {
             protected = true;
             break;
@@ -148,6 +148,7 @@ bool is_protected_path(const char *path) {
 
     return protected;
 }
+
 
 /* ---------------------------------------------- */
 // Function for deffered work
@@ -950,7 +951,8 @@ void setMonitorREC_OFF() {
 // }
 
 int insertPath(const char *path) {
-    struct path_node *new_node, *cur_node;
+    struct path_node *new_node, *cur_node;  // Rinominato da 'current'
+    int ret = -1;
 
     if (monitor.mode != 2 && monitor.mode != 3) {
         printk(KERN_ERR "Error: REC_ON or REC_OFF required\n");
@@ -962,21 +964,6 @@ int insertPath(const char *path) {
         return -EINVAL;
     }
 
-    new_node = kmalloc(sizeof(*new_node), GFP_KERNEL);
-    if (!new_node) {
-        printk(KERN_ERR "Failed to allocate memory for new path node\n");
-        return -ENOMEM;
-    }
-
-    new_node->path = kmalloc(strlen(path) + 1, GFP_KERNEL);
-    if (!new_node->path) {
-        printk(KERN_ERR "Failed to allocate memory for path\n");
-        kfree(new_node);
-        return -ENOMEM;
-    }
-    strncpy(new_node->path, path, strlen(path) + 1);
-    new_node->next = NULL;
-
     spin_lock(&monitor.lock);
 
     // Controlla se il percorso è già presente nella lista
@@ -985,25 +972,37 @@ int insertPath(const char *path) {
         if (strcmp(cur_node->path, path) == 0) {
             printk(KERN_INFO "Path already exists: %s\n", path);
             spin_unlock(&monitor.lock);
-            kfree(new_node->path);
-            kfree(new_node);
             return -EEXIST;
         }
         cur_node = cur_node->next;
     }
 
-    // Inserisce il nuovo nodo in testa alla lista
+    // Creazione del nuovo nodo
+    new_node = kmalloc(sizeof(struct path_node), GFP_KERNEL);
+    if (!new_node) {
+        printk(KERN_ERR "Failed to allocate memory for new node\n");
+        spin_unlock(&monitor.lock);
+        return -ENOMEM;
+    }
+    new_node->path = kstrdup(path, GFP_KERNEL);
+    if (!new_node->path) {
+        printk(KERN_ERR "Failed to allocate memory for path\n");
+        kfree(new_node);
+        spin_unlock(&monitor.lock);
+        return -ENOMEM;
+    }
     new_node->next = monitor.head;
     monitor.head = new_node;
 
     spin_unlock(&monitor.lock);
 
     printk(KERN_INFO "Path inserted: %s\n", path);
+
     return 0;
 }
 
 int removePath(const char *path) {
-    struct path_node *cur_node, *prev = NULL;
+    struct path_node *cur_node, *prev_node = NULL;  // Rinominato da 'current'
     int ret = -1;
 
     if (monitor.mode != 2 && monitor.mode != 3) {
@@ -1016,18 +1015,17 @@ int removePath(const char *path) {
     cur_node = monitor.head;
     while (cur_node) {
         if (strcmp(cur_node->path, path) == 0) {
-            if (prev) {
-                prev->next = cur_node->next;
+            if (prev_node) {
+                prev_node->next = cur_node->next;
             } else {
                 monitor.head = cur_node->next;
             }
-
             kfree(cur_node->path);
             kfree(cur_node);
             ret = 0;
             break;
         }
-        prev = cur_node;
+        prev_node = cur_node;
         cur_node = cur_node->next;
     }
 
@@ -1041,6 +1039,7 @@ int removePath(const char *path) {
 
     return ret;
 }
+
 
 
 int comparePassw(char *password) {
