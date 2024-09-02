@@ -1,3 +1,7 @@
+//problema con mutex_lock nel vfs nella read
+//lista per i path
+//directory hash
+
 #include <linux/fs.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -42,8 +46,14 @@ static int Major;
 static struct class* device_class = NULL;
 static struct device* device = NULL;
 
+struct path_node {
+    char *path;
+    struct path_node *next;
+};
+
 struct r_monitor {
-    char *path[MAX_LEN]; //array di puntatori ai path da proteggere
+    //char *path[MAX_LEN]; //array di puntatori ai path da proteggere
+    struct path_node *head; // Puntatore alla testa della lista
     int last_index; //indice dell'ultimo path inserito
     int mode; //0 = OFF; 1 = ON; 2 = REC_OFF; 3 = REC_ON;
     char password[PASS_LEN];
@@ -102,17 +112,39 @@ static inline bool is_root_uid(void) {
 }
 
 // Funzione per verificare se un percorso è protetto
+// bool is_protected_path(const char *path) {
+//     int i;
+//     bool protected = false;
+
+//     spin_lock(&monitor.lock);
+//     for (i = 0; i <= monitor.last_index; i++) {
+//         if (monitor.path[i] && strncmp(monitor.path[i], path, strlen(monitor.path[i])) == 0) {
+//             protected = true;
+//             break;
+//         }
+//     }
+//     spin_unlock(&monitor.lock);
+
+//     return protected;
+// }
+
+// Funzione per verificare se un percorso è protetto
 bool is_protected_path(const char *path) {
-    int i;
+    struct path_node *current;
     bool protected = false;
 
     spin_lock(&monitor.lock);
-    for (i = 0; i <= monitor.last_index; i++) {
-        if (monitor.path[i] && strncmp(monitor.path[i], path, strlen(monitor.path[i])) == 0) {
+
+    // Scorre la lista per cercare una corrispondenza
+    current = monitor.head;
+    while (current) {
+        if (strncmp(current->path, path, strlen(current->path)) == 0) {
             protected = true;
             break;
         }
+        current = current->next;
     }
+
     spin_unlock(&monitor.lock);
 
     return protected;
@@ -431,6 +463,7 @@ static int handler_filp_open(struct kprobe *p, struct pt_regs *regs) {
             kfree(dir);
             kfree(path);
             regs->ax = -EACCES;
+            regs->di = (unsigned long)NULL;
             send_permission_denied_signal();
             return 0;
         }
@@ -440,6 +473,7 @@ static int handler_filp_open(struct kprobe *p, struct pt_regs *regs) {
         kfree(dir);
         kfree(path);
         regs->ax = -EACCES;
+        regs->di = (unsigned long)NULL;
         send_permission_denied_signal();
         return 0;
     }
@@ -824,87 +858,180 @@ void setMonitorREC_OFF() {
     }
 }
 
+// int insertPath(const char *path) {
+//     int i;
+//     int ret = -1;
+
+//     if (monitor.mode != 2 && monitor.mode != 3) {
+//         printk(KERN_ERR "Error: REC_ON or REC_OFF required\n");
+//         return -1;
+//     }
+
+//     // Verifica se il percorso è uguale a the_file
+//     if (the_file && strncmp(path, the_file, strlen(the_file)) == 0) {
+//         printk(KERN_ERR "Error: Cannot protect the log file path\n");
+//         return -EINVAL;
+//     }
+
+//     spin_lock(&monitor.lock);
+
+//     // Controlla se il percorso è già presente nella lista
+//     for (i = 0; i <= monitor.last_index; i++) {
+//         if (monitor.path[i] && strcmp(monitor.path[i], path) == 0) {
+//             printk(KERN_INFO "Path already exists: %s\n", path);
+//             spin_unlock(&monitor.lock);
+//             return -EEXIST; // il percorso esiste già
+//         }
+//     }
+
+//     if (monitor.last_index < MAX_LEN - 1) {
+//         monitor.last_index++;
+//         monitor.path[monitor.last_index] = kmalloc(strlen(path) + 1, GFP_KERNEL);
+//         if (!monitor.path[monitor.last_index]) {
+//             printk(KERN_ERR "Failed to allocate memory\n");
+//             monitor.last_index--;  // Decrementa l'indice
+//             spin_unlock(&monitor.lock);
+//             return -ENOMEM;
+//         }
+//         strncpy(monitor.path[monitor.last_index], path, strlen(path) + 1);
+//         ret = 0;
+//     } else {
+//         printk(KERN_ERR "Path list is full\n");
+//         ret = -ENOMEM;  // Uso ENOMEM per indicare che la lista è piena
+//     }
+
+//     spin_unlock(&monitor.lock);
+
+//     if (ret == 0) {
+//         printk(KERN_INFO "Path inserted: %s\n", monitor.path[monitor.last_index]);
+//     } else if (ret != -EEXIST) {  
+//         printk(KERN_ERR "Failed to insert path\n");
+//     }
+
+//     return ret;
+// }
+
+
+// int removePath(const char *path) {
+//     int i, j;
+//     int ret = -1;
+
+//     // Controlla che il monitor sia in modalità REC_ON o REC_OFF
+//     if (monitor.mode != 2 && monitor.mode != 3) {
+//         printk(KERN_ERR "Error: REC_ON or REC_OFF required\n");
+//         return -1;
+//     }
+
+//     spin_lock(&monitor.lock);
+//     for (i = 0; i <= monitor.last_index; i++) {
+//         if (monitor.path[i] && strcmp(monitor.path[i], path) == 0) {
+//             kfree(monitor.path[i]);  // Libera la memoria del percorso da rimuovere
+//             monitor.path[i] = NULL;
+
+//             // Shift degli elementi restanti per riempire il buco
+//             for (j = i; j < monitor.last_index; j++) {
+//                 monitor.path[j] = monitor.path[j + 1];
+//             }
+//             monitor.path[monitor.last_index] = NULL;
+//             monitor.last_index--;
+
+//             ret = 0;  // Indica che la rimozione è avvenuta con successo
+//             break;
+//         }
+//     }
+//     spin_unlock(&monitor.lock);
+
+//     if (ret == 0) {
+//         printk(KERN_INFO "Path removed: %s\n", path);
+//     } else {
+//         printk(KERN_ERR "Failed to remove path: %s\n", path);
+//     }
+
+//     return ret;
+// }
+
 int insertPath(const char *path) {
-    int i;
-    int ret = -1;
+    struct path_node *new_node, *current;
 
     if (monitor.mode != 2 && monitor.mode != 3) {
         printk(KERN_ERR "Error: REC_ON or REC_OFF required\n");
         return -1;
     }
 
-    // Verifica se il percorso è uguale a the_file
     if (the_file && strncmp(path, the_file, strlen(the_file)) == 0) {
         printk(KERN_ERR "Error: Cannot protect the log file path\n");
         return -EINVAL;
     }
 
+    new_node = kmalloc(sizeof(*new_node), GFP_KERNEL);
+    if (!new_node) {
+        printk(KERN_ERR "Failed to allocate memory for new path node\n");
+        return -ENOMEM;
+    }
+
+    new_node->path = kmalloc(strlen(path) + 1, GFP_KERNEL);
+    if (!new_node->path) {
+        printk(KERN_ERR "Failed to allocate memory for path\n");
+        kfree(new_node);
+        return -ENOMEM;
+    }
+    strncpy(new_node->path, path, strlen(path) + 1);
+    new_node->next = NULL;
+
     spin_lock(&monitor.lock);
 
     // Controlla se il percorso è già presente nella lista
-    for (i = 0; i <= monitor.last_index; i++) {
-        if (monitor.path[i] && strcmp(monitor.path[i], path) == 0) {
+    current = monitor.head;
+    while (current) {
+        if (strcmp(current->path, path) == 0) {
             printk(KERN_INFO "Path already exists: %s\n", path);
             spin_unlock(&monitor.lock);
-            return -EEXIST; // il percorso esiste già
+            kfree(new_node->path);
+            kfree(new_node);
+            return -EEXIST;
         }
+        current = current->next;
     }
 
-    if (monitor.last_index < MAX_LEN - 1) {
-        monitor.last_index++;
-        monitor.path[monitor.last_index] = kmalloc(strlen(path) + 1, GFP_KERNEL);
-        if (!monitor.path[monitor.last_index]) {
-            printk(KERN_ERR "Failed to allocate memory\n");
-            monitor.last_index--;  // Decrementa l'indice
-            spin_unlock(&monitor.lock);
-            return -ENOMEM;
-        }
-        strncpy(monitor.path[monitor.last_index], path, strlen(path) + 1);
-        ret = 0;
-    } else {
-        printk(KERN_ERR "Path list is full\n");
-        ret = -ENOMEM;  // Uso ENOMEM per indicare che la lista è piena
-    }
+    // Inserisce il nuovo nodo in testa alla lista
+    new_node->next = monitor.head;
+    monitor.head = new_node;
 
     spin_unlock(&monitor.lock);
 
-    if (ret == 0) {
-        printk(KERN_INFO "Path inserted: %s\n", monitor.path[monitor.last_index]);
-    } else if (ret != -EEXIST) {  
-        printk(KERN_ERR "Failed to insert path\n");
-    }
-
-    return ret;
+    printk(KERN_INFO "Path inserted: %s\n", path);
+    return 0;
 }
 
-
 int removePath(const char *path) {
-    int i, j;
+    struct path_node *current, *prev = NULL;
     int ret = -1;
 
-    // Controlla che il monitor sia in modalità REC_ON o REC_OFF
     if (monitor.mode != 2 && monitor.mode != 3) {
         printk(KERN_ERR "Error: REC_ON or REC_OFF required\n");
         return -1;
     }
 
     spin_lock(&monitor.lock);
-    for (i = 0; i <= monitor.last_index; i++) {
-        if (monitor.path[i] && strcmp(monitor.path[i], path) == 0) {
-            kfree(monitor.path[i]);  // Libera la memoria del percorso da rimuovere
-            monitor.path[i] = NULL;
 
-            // Shift degli elementi restanti per riempire il buco
-            for (j = i; j < monitor.last_index; j++) {
-                monitor.path[j] = monitor.path[j + 1];
+    current = monitor.head;
+    while (current) {
+        if (strcmp(current->path, path) == 0) {
+            if (prev) {
+                prev->next = current->next;
+            } else {
+                monitor.head = current->next;
             }
-            monitor.path[monitor.last_index] = NULL;
-            monitor.last_index--;
 
-            ret = 0;  // Indica che la rimozione è avvenuta con successo
+            kfree(current->path);
+            kfree(current);
+            ret = 0;
             break;
         }
+        prev = current;
+        current = current->next;
     }
+
     spin_unlock(&monitor.lock);
 
     if (ret == 0) {
