@@ -129,19 +129,19 @@ static inline bool is_root_uid(void) {
 
 // Funzione per verificare se un percorso è protetto
 bool is_protected_path(const char *path) {
-    struct path_node *current;
+    struct path_node *cur_node;
     bool protected = false;
 
     spin_lock(&monitor.lock);
 
     // Scorre la lista per cercare una corrispondenza
-    current = monitor.head;
+    cur_node = monitor.head;
     while (current) {
-        if (strncmp(current->path, path, strlen(current->path)) == 0) {
+        if (strncmp(cur_node->path, path, strlen(cur_node->path)) == 0) {
             protected = true;
             break;
         }
-        current = current->next;
+        cur_node = cur_node->next;
     }
 
     spin_unlock(&monitor.lock);
@@ -950,7 +950,7 @@ void setMonitorREC_OFF() {
 // }
 
 int insertPath(const char *path) {
-    struct path_node *new_node, *current;
+    struct path_node *new_node, *cur_node;
 
     if (monitor.mode != 2 && monitor.mode != 3) {
         printk(KERN_ERR "Error: REC_ON or REC_OFF required\n");
@@ -980,16 +980,16 @@ int insertPath(const char *path) {
     spin_lock(&monitor.lock);
 
     // Controlla se il percorso è già presente nella lista
-    current = monitor.head;
-    while (current) {
-        if (strcmp(current->path, path) == 0) {
+    cur_node = monitor.head;
+    while (cur_node) {
+        if (strcmp(cur_node->path, path) == 0) {
             printk(KERN_INFO "Path already exists: %s\n", path);
             spin_unlock(&monitor.lock);
             kfree(new_node->path);
             kfree(new_node);
             return -EEXIST;
         }
-        current = current->next;
+        cur_node = cur_node->next;
     }
 
     // Inserisce il nuovo nodo in testa alla lista
@@ -1003,7 +1003,7 @@ int insertPath(const char *path) {
 }
 
 int removePath(const char *path) {
-    struct path_node *current, *prev = NULL;
+    struct path_node *cur_node, *prev = NULL;
     int ret = -1;
 
     if (monitor.mode != 2 && monitor.mode != 3) {
@@ -1013,22 +1013,22 @@ int removePath(const char *path) {
 
     spin_lock(&monitor.lock);
 
-    current = monitor.head;
-    while (current) {
-        if (strcmp(current->path, path) == 0) {
+    cur_node = monitor.head;
+    while (cur_node) {
+        if (strcmp(cur_node->path, path) == 0) {
             if (prev) {
-                prev->next = current->next;
+                prev->next = cur_node->next;
             } else {
-                monitor.head = current->next;
+                monitor.head = cur_node->next;
             }
 
-            kfree(current->path);
-            kfree(current);
+            kfree(cur_node->path);
+            kfree(cur_node);
             ret = 0;
             break;
         }
-        prev = current;
-        current = current->next;
+        prev = cur_node;
+        cur_node = cur_node->next;
     }
 
     spin_unlock(&monitor.lock);
