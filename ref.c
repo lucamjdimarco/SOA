@@ -345,6 +345,7 @@ void schedule_logging(const char *program_path) {
         if (vfs_getattr(&p, &stat, STATX_BASIC_STATS, AT_STATX_SYNC_AS_STAT) == 0) {
             //Se il path è una directory, calcola l'hash della directory
             if (S_ISDIR(stat.mode)) {
+                printk(KERN_INFO "Computing hash for directory: %s\n", program_path);
                 hash_result = compute_directory_hash(program_path, hash);
             } else {
                 //Se il path è un file, calcola l'hash del file
@@ -952,8 +953,7 @@ void setMonitorREC_OFF() {
 // }
 
 int insertPath(const char *path) {
-    struct path_node *new_node, *cur_node;  // Rinominato da 'current'
-    int ret = -1;
+    struct path_node *new_node, *cur_node;  
 
     if (monitor.mode != 2 && monitor.mode != 3) {
         printk(KERN_ERR "Error: REC_ON or REC_OFF required\n");
