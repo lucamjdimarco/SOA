@@ -64,7 +64,6 @@ struct r_monitor monitor = {
     .password = "default",
     .last_index = -1,
     .mode = 0,
-    .path = {NULL}
 };
 
 static struct kprobe kp_filp_open;
