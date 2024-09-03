@@ -178,7 +178,7 @@ char *get_absolute_path(const char *user_path) {
     snprintf(abs_path, len, "%s/%s", current_dir, user_path);
 
     // Risolvi i componenti ".." e "." del percorso
-    *resolved_path = full_path(AT_FDCWD, abs_path);
+    resolved_path = full_path(AT_FDCWD, abs_path);
     if (!resolved_path) {
         printk(KERN_ERR "Failed to resolve full path\n");
         kfree(abs_path);
