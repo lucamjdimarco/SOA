@@ -163,16 +163,30 @@ char *get_absolute_path(const char *user_path) {
         return NULL;
     }
 
-    // Combina la directory di lavoro corrente con il percorso relativo fornito dall'utente
-    abs_path = full_path(AT_FDCWD, user_path);
+    // Calcola la lunghezza del percorso assoluto finale
+    size_t len = strlen(current_dir) + strlen(user_path) + 2; // 1 per lo slash, 1 per il terminatore nullo
+    abs_path = kmalloc(len, GFP_KERNEL);
     if (!abs_path) {
+        printk(KERN_ERR "Failed to allocate memory for abs_path\n");
+        kfree(current_dir);
+        return NULL;
+    }
+
+    // Costruisce il percorso assoluto
+    snprintf(abs_path, len, "%s/%s", current_dir, user_path);
+
+    // Risolvi i componenti ".." e "." del percorso
+    char *resolved_path = full_path(AT_FDCWD, abs_path);
+    if (!resolved_path) {
         printk(KERN_ERR "Failed to resolve full path\n");
+        kfree(abs_path);
         kfree(current_dir);
         return NULL;
     }
 
     kfree(current_dir);
-    return abs_path;
+    kfree(abs_path);
+    return resolved_path;
 }
 
 
