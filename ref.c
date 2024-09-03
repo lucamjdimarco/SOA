@@ -409,7 +409,7 @@ static int handler_filp_open(struct kprobe *p, struct pt_regs *regs) {
     char *dir = NULL;
 
     //
-    struct path_node *node = NULL;
+    //struct path_node *node = NULL;
     //struct monitored_entry *entries = NULL;
 
     if (!regs) {
@@ -888,7 +888,7 @@ int insertPath(const char *path) {
     struct path_node *new_node, *cur_node;  
     char *absolute_path;
     //
-    struct monitored_entry *entries = NULL;
+    //struct monitored_entry *entries = NULL;
 
     if (monitor.mode != 2 && monitor.mode != 3) {
         printk(KERN_ERR "Error: REC_ON or REC_OFF required\n");

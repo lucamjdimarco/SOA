@@ -1,10 +1,10 @@
 //#ifndef FUNC_AUX_H
 //#define FUNC_AUX_H
 
-struct monitored_entry {
-    char *path;
-    struct monitored_entry *next;
-};
+// struct monitored_entry {
+//     char *path;
+//     struct monitored_entry *next;
+// };
 
 
 int strncmp_custom(const char *s1, const char *s2, size_t n);
