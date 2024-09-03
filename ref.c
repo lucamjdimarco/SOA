@@ -47,10 +47,10 @@ static struct class* device_class = NULL;
 static struct device* device = NULL;
 
 
-struct monitored_entry {
-    char *path;
-    struct monitored_entry *next;
-};
+// struct monitored_entry {
+//     char *path;
+//     struct monitored_entry *next;
+// };
 
 struct path_node {
     char *path;

@@ -18,16 +18,11 @@
 #include <linux/version.h>
 #include <linux/cred.h>
 #include <linux/dirent.h>
-
+#include <func_aux.h>
 
 MODULE_AUTHOR("Luca Di Marco");
 MODULE_DESCRIPTION("Aux function for the reference monitor");
 MODULE_LICENSE("GPL");
-
-struct monitored_entry {
-    char *path;
-    struct monitored_entry *next;
-};
 
 
 
@@ -319,15 +314,15 @@ int scan_directory(const char *dir_path, struct monitored_entry **entries) {
     return err < 0 ? err : 0;
 }
 
-// // Funzione per verificare se un percorso è una directory
-// static int is_directory(const char *path) {
-//     struct kstat stat;
-//     if (vfs_stat(path, &stat) < 0) {
-//         printk(KERN_ERR "Failed to stat path: %s\n", path);
-//         return 0; // Non è una directory, o errore nel recuperare le informazioni
-//     }
-//     return S_ISDIR(stat.mode); // Restituisce 1 se è una directory, 0 altrimenti
-//}
+// Funzione per verificare se un percorso è una directory
+static int is_directory(const char *path) {
+    struct kstat stat;
+    if (vfs_stat(path, &stat) < 0) {
+        printk(KERN_ERR "Failed to stat path: %s\n", path);
+        return 0; // Non è una directory, o errore nel recuperare le informazioni
+    }
+    return S_ISDIR(stat.mode); // Restituisce 1 se è una directory, 0 altrimenti
+}
 
 
 
