@@ -142,3 +142,36 @@ char *get_pwd(void) {
     return full_path;
 }
 
+char *get_absolute_path(const char *user_path) {
+    char *abs_path;
+
+    // Se il percorso utente è già assoluto, restituiscilo così com'è
+    if (user_path[0] == '/') {
+        abs_path = kstrdup(user_path, GFP_KERNEL);
+        if (!abs_path) {
+            printk(KERN_ERR "Failed to allocate memory for abs_path\n");
+            return NULL;
+        }
+        return abs_path;
+    }
+
+    // Recupera il percorso della directory di lavoro corrente
+    char *current_dir = get_pwd();
+    if (!current_dir) {
+        printk(KERN_ERR "Failed to retrieve current working directory\n");
+        return NULL;
+    }
+
+    // Combina la directory di lavoro corrente con il percorso relativo fornito dall'utente
+    abs_path = full_path(AT_FDCWD, user_path);
+    if (!abs_path) {
+        printk(KERN_ERR "Failed to resolve full path\n");
+        kfree(current_dir);
+        return NULL;
+    }
+
+    kfree(current_dir);
+    return abs_path;
+}
+
+

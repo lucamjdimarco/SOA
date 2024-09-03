@@ -953,14 +953,24 @@ void setMonitorREC_OFF() {
 
 int insertPath(const char *path) {
     struct path_node *new_node, *cur_node;  
+    char *absolute_path;
 
     if (monitor.mode != 2 && monitor.mode != 3) {
         printk(KERN_ERR "Error: REC_ON or REC_OFF required\n");
         return -1;
     }
 
-    if (the_file && strncmp(path, the_file, strlen(the_file)) == 0) {
+    // Converti il percorso fornito in un percorso assoluto
+    absolute_path = get_absolute_path(path);
+    if (!absolute_path) {
+        printk(KERN_ERR "Error: Could not resolve absolute path\n");
+        return -EINVAL;
+    }
+
+    // Controlla se il percorso assoluto è lo stesso del file di log
+    if (the_file && strncmp(absolute_path, the_file, strlen(the_file)) == 0) {
         printk(KERN_ERR "Error: Cannot protect the log file path\n");
+        kfree(absolute_path);  // Libera la memoria allocata per absolute_path
         return -EINVAL;
     }
 
@@ -969,9 +979,10 @@ int insertPath(const char *path) {
     // Controlla se il percorso è già presente nella lista
     cur_node = monitor.head;
     while (cur_node) {
-        if (strcmp(cur_node->path, path) == 0) {
-            printk(KERN_INFO "Path already exists: %s\n", path);
+        if (strcmp(cur_node->path, absolute_path) == 0) {
+            printk(KERN_INFO "Path already exists: %s\n", absolute_path);
             spin_unlock(&monitor.lock);
+            kfree(absolute_path);  // Libera la memoria allocata per absolute_path
             return -EEXIST;
         }
         cur_node = cur_node->next;
@@ -982,21 +993,16 @@ int insertPath(const char *path) {
     if (!new_node) {
         printk(KERN_ERR "Failed to allocate memory for new node\n");
         spin_unlock(&monitor.lock);
+        kfree(absolute_path);  // Libera la memoria allocata per absolute_path
         return -ENOMEM;
     }
-    new_node->path = kstrdup(path, GFP_KERNEL);
-    if (!new_node->path) {
-        printk(KERN_ERR "Failed to allocate memory for path\n");
-        kfree(new_node);
-        spin_unlock(&monitor.lock);
-        return -ENOMEM;
-    }
+    new_node->path = absolute_path;  // Usa il percorso assoluto
     new_node->next = monitor.head;
     monitor.head = new_node;
 
     spin_unlock(&monitor.lock);
 
-    printk(KERN_INFO "Path inserted: %s\n", path);
+    printk(KERN_INFO "Path inserted: %s\n", absolute_path);
 
     return 0;
 }
