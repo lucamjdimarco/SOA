@@ -18,7 +18,7 @@
 #include <linux/version.h>
 #include <linux/cred.h>
 #include <linux/dirent.h>
-#include <func_aux.h>
+#include "func_aux.h"
 
 MODULE_AUTHOR("Luca Di Marco");
 MODULE_DESCRIPTION("Aux function for the reference monitor");
