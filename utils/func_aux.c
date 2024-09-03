@@ -142,20 +142,84 @@ char *get_pwd(void) {
     return full_path;
 }
 
+char *resolve_path(const char *path) {
+    char *resolved_path, *token, *tmp;
+    char **stack;
+    int i, depth = 0;
+    size_t len;
+
+    // Allocazione dello stack per tenere traccia dei componenti del percorso
+    stack = kmalloc_array(strlen(path) / 2 + 1, sizeof(char *), GFP_KERNEL);
+    if (!stack) {
+        printk(KERN_ERR "Failed to allocate memory for stack\n");
+        return NULL;
+    }
+
+    // Copia del percorso per la tokenizzazione
+    tmp = kstrdup(path, GFP_KERNEL);
+    if (!tmp) {
+        printk(KERN_ERR "Failed to allocate memory for path copy\n");
+        kfree(stack);
+        return NULL;
+    }
+
+    // Tokenizzazione del percorso
+    token = strsep(&tmp, "/");
+    while (token) {
+        if (strcmp(token, ".") == 0) {
+            // Ignora '.' (rimani nella stessa directory)
+        } else if (strcmp(token, "..") == 0) {
+            if (depth > 0) {
+                // Torna alla directory precedente
+                depth--;
+            }
+        } else if (strlen(token) > 0) {
+            // Aggiunge il token allo stack
+            stack[depth++] = token;
+        }
+        token = strsep(&tmp, "/");
+    }
+
+    // Calcolo della lunghezza del percorso risolto
+    len = 1; // Per lo slash iniziale
+    for (i = 0; i < depth; i++) {
+        len += strlen(stack[i]) + 1;
+    }
+
+    // Allocazione della memoria per il percorso risolto
+    resolved_path = kmalloc(len, GFP_KERNEL);
+    if (!resolved_path) {
+        printk(KERN_ERR "Failed to allocate memory for resolved_path\n");
+        kfree(stack);
+        kfree(tmp);
+        return NULL;
+    }
+
+    // Costruzione del percorso risolto
+    resolved_path[0] = '/';
+    resolved_path[1] = '\0';
+    for (i = 0; i < depth; i++) {
+        strcat(resolved_path, stack[i]);
+        if (i < depth - 1) {
+            strcat(resolved_path, "/");
+        }
+    }
+
+    kfree(stack);
+    kfree(tmp);
+
+    return resolved_path;
+}
+
 char *get_absolute_path(const char *user_path) {
     char *abs_path;
     char *current_dir;
     char *resolved_path;
     size_t len;
 
-    // Se il percorso utente è già assoluto, restituiscilo così com'è
+    // Se il percorso utente è già assoluto, risolvilo direttamente
     if (user_path[0] == '/') {
-        abs_path = kstrdup(user_path, GFP_KERNEL);
-        if (!abs_path) {
-            printk(KERN_ERR "Failed to allocate memory for abs_path\n");
-            return NULL;
-        }
-        return abs_path;
+        return resolve_path(user_path);
     }
 
     // Recupera il percorso della directory di lavoro corrente
@@ -177,8 +241,8 @@ char *get_absolute_path(const char *user_path) {
     // Costruisce il percorso assoluto
     snprintf(abs_path, len, "%s/%s", current_dir, user_path);
 
-    // Risolvi i componenti ".." e "." del percorso
-    resolved_path = full_path(AT_FDCWD, abs_path);
+    // Risolve i componenti ".." e "." del percorso
+    resolved_path = resolve_path(abs_path);
     if (!resolved_path) {
         printk(KERN_ERR "Failed to resolve full path\n");
         kfree(abs_path);
