@@ -925,17 +925,17 @@ int insertPath(const char *path) {
 
     //
     // Se è una directory, esegui la scansione
-    if (is_directory(absolute_path)) {
-        if (scan_directory(absolute_path, &entries) != 0) {
-            printk(KERN_ERR "Failed to scan directory: %s\n", absolute_path);
-            spin_unlock(&monitor.lock);
-            kfree(absolute_path);
-            return -EINVAL;
-        }
-    } else {
-        printk(KERN_INFO "Path is a file: %s\n", absolute_path);
-        entries = NULL;
-    }
+    //if (is_directory(absolute_path)) {
+    if (scan_directory(absolute_path, &entries) != 0) {
+        printk(KERN_ERR "Failed to scan directory: %s\n", absolute_path);
+        spin_unlock(&monitor.lock);
+        kfree(absolute_path);
+        return -EINVAL;
+        //}
+    // } else {
+    //     printk(KERN_INFO "Path is a file: %s\n", absolute_path);
+    //     entries = NULL;
+    // }
 
     // Creazione del nuovo nodo
     new_node = kmalloc(sizeof(struct path_node), GFP_KERNEL);

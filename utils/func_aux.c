@@ -315,14 +315,14 @@ int scan_directory(const char *dir_path, struct monitored_entry **entries) {
 }
 
 // Funzione per verificare se un percorso è una directory
-int is_directory(const char *path) {
-    struct kstat stat;
-    if (vfs_stat(path, &stat) < 0) {
-        printk(KERN_ERR "Failed to stat path: %s\n", path);
-        return 0; // Non è una directory, o errore nel recuperare le informazioni
-    }
-    return S_ISDIR(stat.mode); // Restituisce 1 se è una directory, 0 altrimenti
-}
+// int is_directory(const char *path) {
+//     struct kstat stat;
+//     if (vfs_stat(path, &stat) < 0) {
+//         printk(KERN_ERR "Failed to stat path: %s\n", path);
+//         return 0; // Non è una directory, o errore nel recuperare le informazioni
+//     }
+//     return S_ISDIR(stat.mode); // Restituisce 1 se è una directory, 0 altrimenti
+// }
 
 
 
