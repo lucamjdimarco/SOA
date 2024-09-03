@@ -24,6 +24,11 @@ MODULE_AUTHOR("Luca Di Marco");
 MODULE_DESCRIPTION("Aux function for the reference monitor");
 MODULE_LICENSE("GPL");
 
+struct monitored_entry {
+    char *path;
+    struct monitored_entry *next;
+};
+
 
 
 int strncmp_custom(const char *s1, const char *s2, size_t n) {
@@ -258,7 +263,7 @@ char *get_absolute_path(const char *user_path) {
     return resolved_path;
 }
 
-int scan_directory(const char *dir_path, struct monitored_entry *entries) {
+int scan_directory(const char *dir_path, struct monitored_entry **entries) {
     struct file *dir;
     struct dir_context ctx;
     struct linux_dirent64 *dirent;
@@ -294,6 +299,13 @@ int scan_directory(const char *dir_path, struct monitored_entry *entries) {
                 }
 
                 entry->path = kasprintf(GFP_KERNEL, "%s/%s", dir_path, dirent->d_name);
+                if (!entry->path) {
+                    kfree(entry);
+                    kfree(buf);
+                    filp_close(dir, NULL);
+                    return -ENOMEM;
+                }
+
                 entry->next = *entries;
                 *entries = entry;
             }
