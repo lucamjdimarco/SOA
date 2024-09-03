@@ -410,7 +410,7 @@ static int handler_filp_open(struct kprobe *p, struct pt_regs *regs) {
 
     //
     struct path_node *node = NULL;
-    struct monitored_entry *entries = NULL;
+    //struct monitored_entry *entries = NULL;
 
     if (!regs) {
         printk(KERN_ERR "Invalid registers\n");
@@ -980,7 +980,7 @@ int removePath(const char *path) {
             }
             kfree(cur_node->path);
             //
-            kfree_entries(cur_node->entries); // Libera le entry
+            kfree(cur_node->entries); // Libera le entry
             kfree(cur_node);
             ret = 0;
             break;

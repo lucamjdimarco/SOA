@@ -15,7 +15,7 @@ static struct mutex lock_log;
 spinlock_t lock;
 
 // Inizializzazione
-spin_lock_init(&lock);
+// spin_lock_init(&lock);
 
 ssize_t onefilefs_read(struct file * filp, char __user * buf, size_t len, loff_t * off) {
 
