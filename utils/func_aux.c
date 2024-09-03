@@ -17,10 +17,17 @@
 #include <linux/syscalls.h>
 #include <linux/version.h>
 #include <linux/cred.h>
+#include <linux/dirent.h>
+
 
 MODULE_AUTHOR("Luca Di Marco");
 MODULE_DESCRIPTION("Aux function for the reference monitor");
 MODULE_LICENSE("GPL");
+
+struct monitored_entry {
+    char *path;
+    struct monitored_entry *next;
+};
 
 
 int strncmp_custom(const char *s1, const char *s2, size_t n) {
