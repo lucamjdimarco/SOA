@@ -315,7 +315,7 @@ int scan_directory(const char *dir_path, struct monitored_entry **entries) {
 }
 
 // Funzione per verificare se un percorso è una directory
-static int is_directory(const char *path) {
+int is_directory(const char *path) {
     struct kstat stat;
     if (vfs_stat(path, &stat) < 0) {
         printk(KERN_ERR "Failed to stat path: %s\n", path);
