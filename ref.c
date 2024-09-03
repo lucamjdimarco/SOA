@@ -67,7 +67,6 @@ struct r_monitor monitor = {
     .mode = 0,
 };
 
-spin_lock_init(&monitor.lock);
 
 static struct kprobe kp_filp_open;
 static struct kprobe kp_rmdir;
