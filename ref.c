@@ -63,7 +63,7 @@ struct r_monitor {
 struct r_monitor monitor = {
     .head = NULL,
     .password = "default",
-    .last_index = -1,
+    //.last_index = -1,
     .mode = 0,
 };
 
@@ -101,12 +101,8 @@ typedef struct {
 static inline bool is_root_uid(void) {
     #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 5, 0)
         #include "linux/uidgid.h"
-            // current_uid() returns struct in newer kernels
-            //printk(KERN_INFO "Check if root\n");
-            //printk(KERN_INFO "UID: %d\n", uid_eq(current_uid(), GLOBAL_ROOT_UID));
             return uid_eq(current_uid(), GLOBAL_ROOT_UID);
         #else
-            //printk(KERN_INFO "Check else root\n");
             return 0 == current_uid();
     #endif
 }
@@ -538,6 +534,7 @@ static int handler_rmdir(struct kprobe *p, struct pt_regs *regs) {
         schedule_logging(dir);
         kfree(dir);
         kfree(ret_ptr);
+        regs->di = (unsigned long)NULL;
         regs->ax = -EACCES;
         send_permission_denied_signal();
         return 0;
@@ -598,6 +595,7 @@ static int handler_mkdirat(struct kprobe *p, struct pt_regs *regs) {
         schedule_logging(dir);
         kfree(dir);
         kfree(ret_ptr);
+        regs->di = (unsigned long)NULL;
         regs->ax = -EACCES;
         send_permission_denied_signal();
         return 0;
@@ -660,6 +658,7 @@ static int handler_unlinkat(struct kprobe *p, struct pt_regs *regs) {
         schedule_logging(dir);
         kfree(dir);
         kfree(ret_ptr);
+        regs->di = (unsigned long)NULL;
         regs->ax = -EACCES;
         send_permission_denied_signal();
         return 0;
