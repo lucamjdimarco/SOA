@@ -144,6 +144,7 @@ char *get_pwd(void) {
 
 char *get_absolute_path(const char *user_path) {
     char *abs_path;
+    char *current_dir;
 
     // Se il percorso utente è già assoluto, restituiscilo così com'è
     if (user_path[0] == '/') {
@@ -156,7 +157,7 @@ char *get_absolute_path(const char *user_path) {
     }
 
     // Recupera il percorso della directory di lavoro corrente
-    char *current_dir = get_pwd();
+    *current_dir = get_pwd();
     if (!current_dir) {
         printk(KERN_ERR "Failed to retrieve current working directory\n");
         return NULL;
