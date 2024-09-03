@@ -12,6 +12,10 @@
 #include "singlefilefs.h"
 
 static struct mutex lock_log; 
+spinlock_t lock;
+
+// Inizializzazione
+spin_lock_init(&lock);
 
 ssize_t onefilefs_read(struct file * filp, char __user * buf, size_t len, loff_t * off) {
 
@@ -161,7 +165,8 @@ ssize_t onefilefs_write_iter(struct kiocb *iocb, struct iov_iter *from) {
         return ret;
     }
 
-    mutex_lock(&lock_log);
+    //mutex_lock(&lock_log);
+    spin_lock(&lock);
     //puntatore all'inode del file
     filp_inode = file->f_inode;
     //dimensione del file attuale
@@ -175,7 +180,8 @@ ssize_t onefilefs_write_iter(struct kiocb *iocb, struct iov_iter *from) {
     while (payload_size > 0) { //finché ci sono dati nel payload
         bh = sb_bread(file->f_path.dentry->d_inode->i_sb, blk_to_write); //legge blocco dal FS su cui scrivere
         if (!bh) {
-            mutex_unlock(&lock_log);
+            //mutex_unlock(&lock_log);
+            spin_unlock(&lock);
             kfree(buffer_data);
             return -EIO;
         }
@@ -208,7 +214,8 @@ ssize_t onefilefs_write_iter(struct kiocb *iocb, struct iov_iter *from) {
     i_size_write(filp_inode, size_file);
     //segno inode sporco e modificato 
     mark_inode_dirty(filp_inode);
-    mutex_unlock(&lock_log);
+    //mutex_unlock(&lock_log);
+    spin_unlock(&lock);
 
     kfree(buffer_data);
     return ret;
