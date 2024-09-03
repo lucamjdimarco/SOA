@@ -46,14 +46,20 @@ static int Major;
 static struct class* device_class = NULL;
 static struct device* device = NULL;
 
+
+struct monitored_entry {
+    char *path;
+    struct monitored_entry *next;
+};
+
 struct path_node {
     char *path;
+    struct monitored_entry *entries; // Lista dei file e directory nella cartella
     struct path_node *next;
 };
 
 struct r_monitor {
-    //char *path[MAX_LEN]; //array di puntatori ai path da proteggere
-    struct path_node *head; // Puntatore alla testa della lista
+    struct path_node *head; // Puntatore alla testa della lista dei path da proteggere 
     int last_index; //indice dell'ultimo path inserito
     int mode; //0 = OFF; 1 = ON; 2 = REC_OFF; 3 = REC_ON;
     char password[PASS_LEN];
@@ -109,25 +115,8 @@ static inline bool is_root_uid(void) {
 }
 
 // Funzione per verificare se un percorso è protetto
-// bool is_protected_path(const char *path) {
-//     int i;
-//     bool protected = false;
-
-//     spin_lock(&monitor.lock);
-//     for (i = 0; i <= monitor.last_index; i++) {
-//         if (monitor.path[i] && strncmp(monitor.path[i], path, strlen(monitor.path[i])) == 0) {
-//             protected = true;
-//             break;
-//         }
-//     }
-//     spin_unlock(&monitor.lock);
-
-//     return protected;
-// }
-
-// Funzione per verificare se un percorso è protetto
 bool is_protected_path(const char *path) {
-    struct path_node *cur_node;  // Rinominato da 'current'
+    struct path_node *cur_node; 
     bool protected = false;
 
     spin_lock(&monitor.lock);
@@ -158,7 +147,6 @@ void get_process_info(char *info, size_t len) {
 }
 
 // Function to compute the SHA-256 hash of a file
-// Hashing del contenuto del file
 int compute_file_hash(const char *filename, unsigned char *hash) {
     struct file *filp;
     struct crypto_shash *tfm;
@@ -223,7 +211,6 @@ out_free:
 }
 
 // Function to compute the SHA-256 hash of a directory
-// Hashing della directory concatenando le informazionidel della stessa
 int compute_directory_hash(const char *path, unsigned char *hash) {
     struct path p;
     //Struttura per mantenere le informazioni di stato della directory
@@ -346,6 +333,7 @@ void schedule_logging(const char *program_path) {
                 hash_result = compute_directory_hash(program_path, hash);
             } else {
                 //Se il path è un file, calcola l'hash del file
+                printk(KERN_INFO "Computing hash for file: %s\n", program_path);
                 hash_result = compute_file_hash(program_path, hash);
             }
 
@@ -396,6 +384,17 @@ static void send_permission_denied_signal(void) {
     send_sig_info(SIGTERM, &info, current);
 }
 
+static int is_preexisting_entry(struct monitored_entry *entries, const char *path) {
+    struct monitored_entry *entry = entries;
+    while (entry) {
+        if (strcmp(entry->path, path) == 0) {
+            return 1; // Trovato nella lista
+        }
+        entry = entry->next;
+    }
+    return 0; // Non trovato nella lista
+}
+
 
 static int handler_filp_open(struct kprobe *p, struct pt_regs *regs) {
 
@@ -408,6 +407,10 @@ static int handler_filp_open(struct kprobe *p, struct pt_regs *regs) {
     int exist = 0;
     char *path = NULL;
     char *dir = NULL;
+
+    //
+    struct path_node *node = NULL;
+    struct monitored_entry *entries = NULL;
 
     if (!regs) {
         printk(KERN_ERR "Invalid registers\n");
@@ -445,7 +448,7 @@ static int handler_filp_open(struct kprobe *p, struct pt_regs *regs) {
     dir = find_directory(path);
     if (!dir) {
         dir = get_pwd();
-    }
+    }spin_lock_init(&monitor.lock);
 
 
     if (!dir) {
@@ -455,8 +458,19 @@ static int handler_filp_open(struct kprobe *p, struct pt_regs *regs) {
         return 0;
     }
 
+    node = monitor.head;
     if ((!(op->open_flag & O_CREAT) || op->mode) && exist) {
         if (is_protected_path(dir)) {
+            
+            while(node) {
+                if(strcmp(node->path, dir) == 0) {
+                    if(is_preexisting_entry(node->entries, path)) {
+                        kfree(dir);
+                        kfree(path);
+                        return 0;
+                    }
+                }
+            }
             printk(KERN_INFO "Access to protected path blocked: %s\n", dir);
             schedule_logging(dir);
             kfree(dir);
@@ -467,6 +481,15 @@ static int handler_filp_open(struct kprobe *p, struct pt_regs *regs) {
             return 0;
         }
     } else if (is_protected_path(path)) {
+        while(node) {
+            if(strcmp(node->path, dir) == 0) {
+                if(is_preexisting_entry(node->entries, path)) {
+                    kfree(dir);
+                    kfree(path);
+                    return 0;
+                }
+            }
+        }
         printk(KERN_INFO "Access to protected path blocked: %s\n", path);
         schedule_logging(path);
         kfree(dir);
@@ -860,101 +883,12 @@ void setMonitorREC_OFF() {
     }
 }
 
-// int insertPath(const char *path) {
-//     int i;
-//     int ret = -1;
-
-//     if (monitor.mode != 2 && monitor.mode != 3) {
-//         printk(KERN_ERR "Error: REC_ON or REC_OFF required\n");
-//         return -1;
-//     }
-
-//     // Verifica se il percorso è uguale a the_file
-//     if (the_file && strncmp(path, the_file, strlen(the_file)) == 0) {
-//         printk(KERN_ERR "Error: Cannot protect the log file path\n");
-//         return -EINVAL;
-//     }
-
-//     spin_lock(&monitor.lock);
-
-//     // Controlla se il percorso è già presente nella lista
-//     for (i = 0; i <= monitor.last_index; i++) {
-//         if (monitor.path[i] && strcmp(monitor.path[i], path) == 0) {
-//             printk(KERN_INFO "Path already exists: %s\n", path);
-//             spin_unlock(&monitor.lock);
-//             return -EEXIST; // il percorso esiste già
-//         }
-//     }
-
-//     if (monitor.last_index < MAX_LEN - 1) {
-//         monitor.last_index++;
-//         monitor.path[monitor.last_index] = kmalloc(strlen(path) + 1, GFP_KERNEL);
-//         if (!monitor.path[monitor.last_index]) {
-//             printk(KERN_ERR "Failed to allocate memory\n");
-//             monitor.last_index--;  // Decrementa l'indice
-//             spin_unlock(&monitor.lock);
-//             return -ENOMEM;
-//         }
-//         strncpy(monitor.path[monitor.last_index], path, strlen(path) + 1);
-//         ret = 0;
-//     } else {
-//         printk(KERN_ERR "Path list is full\n");
-//         ret = -ENOMEM;  // Uso ENOMEM per indicare che la lista è piena
-//     }
-
-//     spin_unlock(&monitor.lock);
-
-//     if (ret == 0) {
-//         printk(KERN_INFO "Path inserted: %s\n", monitor.path[monitor.last_index]);
-//     } else if (ret != -EEXIST) {  
-//         printk(KERN_ERR "Failed to insert path\n");
-//     }
-
-//     return ret;
-// }
-
-
-// int removePath(const char *path) {
-//     int i, j;
-//     int ret = -1;
-
-//     // Controlla che il monitor sia in modalità REC_ON o REC_OFF
-//     if (monitor.mode != 2 && monitor.mode != 3) {
-//         printk(KERN_ERR "Error: REC_ON or REC_OFF required\n");
-//         return -1;
-//     }
-
-//     spin_lock(&monitor.lock);
-//     for (i = 0; i <= monitor.last_index; i++) {
-//         if (monitor.path[i] && strcmp(monitor.path[i], path) == 0) {
-//             kfree(monitor.path[i]);  // Libera la memoria del percorso da rimuovere
-//             monitor.path[i] = NULL;
-
-//             // Shift degli elementi restanti per riempire il buco
-//             for (j = i; j < monitor.last_index; j++) {
-//                 monitor.path[j] = monitor.path[j + 1];
-//             }
-//             monitor.path[monitor.last_index] = NULL;
-//             monitor.last_index--;
-
-//             ret = 0;  // Indica che la rimozione è avvenuta con successo
-//             break;
-//         }
-//     }
-//     spin_unlock(&monitor.lock);
-
-//     if (ret == 0) {
-//         printk(KERN_INFO "Path removed: %s\n", path);
-//     } else {
-//         printk(KERN_ERR "Failed to remove path: %s\n", path);
-//     }
-
-//     return ret;
-// }
 
 int insertPath(const char *path) {
     struct path_node *new_node, *cur_node;  
     char *absolute_path;
+    //
+    struct monitored_entry *entries = NULL;
 
     if (monitor.mode != 2 && monitor.mode != 3) {
         printk(KERN_ERR "Error: REC_ON or REC_OFF required\n");
@@ -989,6 +923,20 @@ int insertPath(const char *path) {
         cur_node = cur_node->next;
     }
 
+    //
+    // Se è una directory, esegui la scansione
+    if (is_directory(absolute_path)) {
+        if (scan_directory(absolute_path, &entries) != 0) {
+            printk(KERN_ERR "Failed to scan directory: %s\n", absolute_path);
+            spin_unlock(&monitor.lock);
+            kfree(absolute_path);
+            return -EINVAL;
+        }
+    } else {
+        printk(KERN_INFO "Path is a file: %s\n", absolute_path);
+        entries = NULL;
+    }
+
     // Creazione del nuovo nodo
     new_node = kmalloc(sizeof(struct path_node), GFP_KERNEL);
     if (!new_node) {
@@ -999,6 +947,9 @@ int insertPath(const char *path) {
     }
     new_node->path = absolute_path;  // Usa il percorso assoluto
     new_node->next = monitor.head;
+    //
+    new_node->entries = entries; // Salva le entry nella nuova path_node
+    //
     monitor.head = new_node;
 
     spin_unlock(&monitor.lock);
@@ -1028,6 +979,8 @@ int removePath(const char *path) {
                 monitor.head = cur_node->next;
             }
             kfree(cur_node->path);
+            //
+            kfree_entries(cur_node->entries); // Libera le entry
             kfree(cur_node);
             ret = 0;
             break;
