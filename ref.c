@@ -997,7 +997,13 @@ int removePath(const char *path) {
             }
             kfree(cur_node->path);
             /*##################################################*/
-            kfree(cur_node->entries); // Libera le entry
+            //kfree(cur_node->entries); // Libera le entry
+            while(cur_node->entries) {
+                struct monitored_entry *tmp = cur_node->entries;
+                cur_node->entries = cur_node->entries->next;
+                kfree(tmp->path);
+                kfree(tmp);
+            }
             /*##################################################*/
             kfree(cur_node);
             ret = 0;
