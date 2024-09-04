@@ -632,9 +632,10 @@ static int handler_unlinkat(struct kprobe *p, struct pt_regs *regs) {
         return 0;
     }
 
-    if (is_protected_path(dir)) {
-        printk(KERN_INFO "Access to protected path blocked: %s\n", dir);
-        schedule_logging(dir);
+    //if (is_protected_path(dir)) {
+    if (is_protected_path(ret_ptr)) {
+        printk(KERN_INFO "Access to protected path blocked: %s\n", ret_ptr);
+        schedule_logging(ret_ptr);
         kfree(dir);
         kfree(ret_ptr);
         regs->di = (unsigned long)NULL;
