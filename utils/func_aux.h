@@ -11,6 +11,7 @@ struct dir_context_data {
     struct dir_context ctx;
     struct monitored_entry **entries;
     const char *dir_path;
+    int skip_root;
 };
 /*##################################################*/
 
