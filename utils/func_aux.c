@@ -260,12 +260,104 @@ char *get_absolute_path(const char *user_path) {
 }
 
 /*##################################################*/
+// int scan_directory(const char *dir_path, struct monitored_entry **entries) {
+//     struct file *dir;
+//     struct dir_context ctx;
+//     struct linux_dirent64 *dirent;
+//     char *buf;
+//     int err = 0;
+
+//     dir = filp_open(dir_path, O_RDONLY | O_DIRECTORY, 0);
+//     if (IS_ERR(dir)) {
+//         printk(KERN_ERR "Failed to open directory: %s\n", dir_path);
+//         return PTR_ERR(dir);
+//     }
+
+//     buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
+//     if (!buf) {
+//         printk(KERN_ERR "Failed to allocate memory for buffer\n");
+//         filp_close(dir, NULL);
+//         return -ENOMEM;
+//     }
+
+//     ctx.pos = 0;
+//     while ((err = kernel_read(dir, buf, PAGE_SIZE, &ctx.pos)) > 0) {
+//         dirent = (struct linux_dirent64 *)buf;
+//         while (dirent->d_reclen > 0 && err > 0) {
+//             // Ignora "." e ".."
+//             if (strcmp(dirent->d_name, ".") != 0 && strcmp(dirent->d_name, "..") != 0) {
+//                 // Crea una nuova entry e aggiungila alla lista
+//                 struct monitored_entry *entry = kmalloc(sizeof(struct monitored_entry), GFP_KERNEL);
+//                 if (!entry) {
+//                     printk(KERN_ERR "Failed to allocate memory for monitored entry\n");
+//                     kfree(buf);
+//                     filp_close(dir, NULL);
+//                     return -ENOMEM;
+//                 }
+
+//                 entry->path = kasprintf(GFP_KERNEL, "%s/%s", dir_path, dirent->d_name);
+//                 if (!entry->path) {
+//                     kfree(entry);
+//                     kfree(buf);
+//                     filp_close(dir, NULL);
+//                     return -ENOMEM;
+//                 }
+
+//                 entry->next = *entries;
+//                 *entries = entry;
+//             }
+//             dirent = (struct linux_dirent64 *)((char *)dirent + dirent->d_reclen);
+//         }
+//     }
+
+//     kfree(buf);
+//     filp_close(dir, NULL);
+
+//     return err < 0 ? err : 0;
+// }
+
+static int filldir(struct dir_context *ctx, const char *name, int namlen, loff_t offset,
+                   u64 ino, unsigned int d_type) {
+    struct dir_context_data *data = container_of(ctx, struct dir_context_data, ctx);
+    struct monitored_entry *entry;
+
+    // Ignora "." e ".."
+    if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0) {
+        return 0;
+    }
+
+    // Crea una nuova entry
+    entry = kmalloc(sizeof(struct monitored_entry), GFP_KERNEL);
+    if (!entry) {
+        printk(KERN_ERR "Failed to allocate memory for monitored entry\n");
+        return -ENOMEM;
+    }
+
+    // Assegna il percorso completo
+    entry->path = kasprintf(GFP_KERNEL, "%s/%s", data->dir_path, name);
+    if (!entry->path) {
+        kfree(entry);
+        return -ENOMEM;
+    }
+
+    // Inserisci l'entry nella lista
+    entry->next = *data->entries;
+    *data->entries = entry;
+
+    return 0;
+}
+
 int scan_directory(const char *dir_path, struct monitored_entry **entries) {
     struct file *dir;
-    struct dir_context ctx;
-    struct linux_dirent64 *dirent;
-    char *buf;
-    int err = 0;
+    struct dir_context_data ctx_data = {
+        .entries = entries,
+        .dir_path = dir_path,
+    };
+    struct dir_context ctx = {
+        .actor = filldir,
+        .pos = 0,
+    };
+    int err;
 
     dir = filp_open(dir_path, O_RDONLY | O_DIRECTORY, 0);
     if (IS_ERR(dir)) {
@@ -273,48 +365,15 @@ int scan_directory(const char *dir_path, struct monitored_entry **entries) {
         return PTR_ERR(dir);
     }
 
-    buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
-    if (!buf) {
-        printk(KERN_ERR "Failed to allocate memory for buffer\n");
-        filp_close(dir, NULL);
-        return -ENOMEM;
+    err = iterate_dir(dir, &ctx);
+    if (err < 0) {
+        printk(KERN_ERR "Failed to iterate directory: %s\n", dir_path);
     }
 
-    ctx.pos = 0;
-    while ((err = kernel_read(dir, buf, PAGE_SIZE, &ctx.pos)) > 0) {
-        dirent = (struct linux_dirent64 *)buf;
-        while (dirent->d_reclen > 0 && err > 0) {
-            // Ignora "." e ".."
-            if (strcmp(dirent->d_name, ".") != 0 && strcmp(dirent->d_name, "..") != 0) {
-                // Crea una nuova entry e aggiungila alla lista
-                struct monitored_entry *entry = kmalloc(sizeof(struct monitored_entry), GFP_KERNEL);
-                if (!entry) {
-                    printk(KERN_ERR "Failed to allocate memory for monitored entry\n");
-                    kfree(buf);
-                    filp_close(dir, NULL);
-                    return -ENOMEM;
-                }
-
-                entry->path = kasprintf(GFP_KERNEL, "%s/%s", dir_path, dirent->d_name);
-                if (!entry->path) {
-                    kfree(entry);
-                    kfree(buf);
-                    filp_close(dir, NULL);
-                    return -ENOMEM;
-                }
-
-                entry->next = *entries;
-                *entries = entry;
-            }
-            dirent = (struct linux_dirent64 *)((char *)dirent + dirent->d_reclen);
-        }
-    }
-
-    kfree(buf);
     filp_close(dir, NULL);
-
-    return err < 0 ? err : 0;
+    return err;
 }
+
 
 //Funzione per verificare se un percorso è una directory
 int is_directory(const char *path) {

@@ -6,6 +6,11 @@ struct monitored_entry {
     char *path;
     struct monitored_entry *next;
 };
+
+struct dir_context_data {
+    struct monitored_entry **entries;
+    const char *dir_path;
+};
 /*##################################################*/
 
 
