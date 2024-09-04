@@ -462,7 +462,7 @@ static int handler_filp_open(struct kprobe *p, struct pt_regs *regs) {
     }
 
     /*##################################################*/
-    spin_lock(&monitor.lock);
+    //spin_lock(&monitor.lock);
     node = monitor.head;
     /*##################################################*/
     if ((!(op->open_flag & O_CREAT) || op->mode) && exist) {
@@ -471,7 +471,7 @@ static int handler_filp_open(struct kprobe *p, struct pt_regs *regs) {
             while(node) {
                 if(strcmp(node->path, dir) == 0) {
                     if(is_preexisting_entry(node->entries, path)) {
-                        spin_unlock(&monitor.lock);
+                        //spin_unlock(&monitor.lock);
                         kfree(dir);
                         kfree(path);
                         return 0;
@@ -482,7 +482,7 @@ static int handler_filp_open(struct kprobe *p, struct pt_regs *regs) {
             /*##################################################*/
             printk(KERN_INFO "Access to protected path blocked: %s\n", dir);
             /*##################################################*/
-            spin_unlock(&monitor.lock);
+            //spin_unlock(&monitor.lock);
             /*##################################################*/
             schedule_logging(dir);
             kfree(dir);
@@ -497,7 +497,7 @@ static int handler_filp_open(struct kprobe *p, struct pt_regs *regs) {
         while(node) {
             if(strcmp(node->path, dir) == 0) {
                 if(is_preexisting_entry(node->entries, path)) {
-                    spin_unlock(&monitor.lock);
+                    //spin_unlock(&monitor.lock);
                     kfree(dir);
                     kfree(path);
                     return 0;
@@ -508,7 +508,7 @@ static int handler_filp_open(struct kprobe *p, struct pt_regs *regs) {
         /*##################################################*/
         printk(KERN_INFO "Access to protected path blocked: %s\n", path);
         /*##################################################*/
-        spin_unlock(&monitor.lock);
+        //spin_unlock(&monitor.lock);
         /*##################################################*/
         schedule_logging(path);
         kfree(dir);
@@ -520,7 +520,7 @@ static int handler_filp_open(struct kprobe *p, struct pt_regs *regs) {
     }
 
     /*##################################################*/
-    spin_unlock(&monitor.lock);
+    //spin_unlock(&monitor.lock);
     /*##################################################*/
 
     kfree(dir);
