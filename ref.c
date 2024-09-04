@@ -481,6 +481,9 @@ static int handler_filp_open(struct kprobe *p, struct pt_regs *regs) {
             }
             /*##################################################*/
             printk(KERN_INFO "Access to protected path blocked: %s\n", dir);
+            /*##################################################*/
+            spin_unlock(&monitor.lock);
+            /*##################################################*/
             schedule_logging(dir);
             kfree(dir);
             kfree(path);
@@ -504,6 +507,9 @@ static int handler_filp_open(struct kprobe *p, struct pt_regs *regs) {
         }
         /*##################################################*/
         printk(KERN_INFO "Access to protected path blocked: %s\n", path);
+        /*##################################################*/
+        spin_unlock(&monitor.lock);
+        /*##################################################*/
         schedule_logging(path);
         kfree(dir);
         kfree(path);
