@@ -423,7 +423,7 @@ static int handler_filp_open(struct kprobe *p, struct pt_regs *regs) {
     dir = find_directory(path);
     if (!dir) {
         dir = get_pwd();
-    }spin_lock_init(&monitor.lock);
+    }
 
 
     if (!dir) {
