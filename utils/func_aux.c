@@ -327,9 +327,12 @@ static int filldir(struct dir_context *ctx, const char *name, int namlen, loff_t
     }
 
     //Skip root directory 
-    if (data->skip_root && offset == 0) {
+    // if (data->skip_root && offset == 0) {
+    //     return 0;
+    // } 
+    if(strcmp(name, data->dir_path) == 0) {
         return 0;
-    } 
+    }
 
     // Crea una nuova entry
     entry = kmalloc(sizeof(struct monitored_entry), GFP_KERNEL);
@@ -359,7 +362,7 @@ int scan_directory(const char *dir_path, struct monitored_entry **entries) {
         .ctx.pos = 0,          // Posizione iniziale
         .entries = entries,    // Lista collegata per le entries
         .dir_path = dir_path,  // Path della directory da scansionare
-        .skip_root = 1,        // Imposta il flag per saltare la directory principale
+        //.skip_root = 1,        // Imposta il flag per saltare la directory principale
     };
     int err;
 
