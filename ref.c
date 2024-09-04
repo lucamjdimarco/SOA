@@ -97,6 +97,10 @@ int changePassword(char *new_password);
 int insertPath(const char *path);
 int removePath(const char *path);
 
+/*##################################################*/
+void print_entries(struct monitored_entry *entries);
+/*##################################################*/
+
 // Workqueue for deferred logging
 static struct workqueue_struct *log_wq;
 typedef struct {
