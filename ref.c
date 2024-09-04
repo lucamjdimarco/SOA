@@ -57,7 +57,7 @@ struct r_monitor {
 
 struct r_monitor monitor = {
     .head = NULL,
-    .password = "",
+    //.password = "",
     //.last_index = -1,
     .mode = 0,
 };
@@ -1194,7 +1194,7 @@ static int __init monitor_init(void) {
     }
 
     spin_lock(&monitor.lock);
-    monitor.last_index = -1;
+    //monitor.last_index = -1;
     monitor.mode = 0;
     strncpy(monitor.password, hash, PASS_LEN);
     spin_unlock(&monitor.lock);
