@@ -595,6 +595,7 @@ static int handler_unlinkat(struct kprobe *p, struct pt_regs *regs) {
 
     char *ret_ptr = NULL;
     char *dir = NULL;
+    bool is_dir = false;
 
     if (!regs) {
         printk(KERN_ERR "Invalid registers\n");
@@ -620,9 +621,40 @@ static int handler_unlinkat(struct kprobe *p, struct pt_regs *regs) {
         }
     }
 
-    dir = find_directory(ret_ptr);
-    if (!dir) {
-        dir = get_pwd();
+    // dir = find_directory(ret_ptr);
+    // if (!dir) {
+    //     dir = get_pwd();
+    // }
+
+    // if (!dir) {
+    //     printk(KERN_ERR "Failed to determine directory\n");
+    //     kfree(ret_ptr);
+    //     regs->ax = -EACCES;
+    //     return 0;
+    // }
+
+    // //if (is_protected_path(dir)) {
+    // if (is_protected_path(ret_ptr)) {
+    //     printk(KERN_INFO "Access to protected path blocked: %s\n", ret_ptr);
+    //     schedule_logging(ret_ptr);
+    //     kfree(dir);
+    //     kfree(ret_ptr);
+    //     regs->di = (unsigned long)NULL;
+    //     regs->ax = -EACCES;
+    //     send_permission_denied_signal();
+    //     return 0;
+    // }
+
+    // ###################################
+    is_dir = is_directory(ret_ptr);
+
+    if (is_dir) {
+        dir = kstrdup(ret_ptr, GFP_KERNEL);
+    } else {
+        dir = find_directory(ret_ptr);
+        if (!dir) {
+            dir = get_pwd();
+        }
     }
 
     if (!dir) {
@@ -632,10 +664,9 @@ static int handler_unlinkat(struct kprobe *p, struct pt_regs *regs) {
         return 0;
     }
 
-    //if (is_protected_path(dir)) {
-    if (is_protected_path(ret_ptr)) {
-        printk(KERN_INFO "Access to protected path blocked: %s\n", ret_ptr);
-        schedule_logging(ret_ptr);
+    if (is_protected_path(is_dir ? dir : ret_ptr)) {
+        printk(KERN_INFO "Access to protected path blocked: %s\n", is_dir ? dir : ret_ptr);
+        schedule_logging(is_dir ? dir : ret_ptr);
         kfree(dir);
         kfree(ret_ptr);
         regs->di = (unsigned long)NULL;
@@ -643,6 +674,10 @@ static int handler_unlinkat(struct kprobe *p, struct pt_regs *regs) {
         send_permission_denied_signal();
         return 0;
     }
+
+
+
+    // ###################################
 
     kfree(dir);
     kfree(ret_ptr);
