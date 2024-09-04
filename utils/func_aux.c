@@ -350,12 +350,10 @@ static int filldir(struct dir_context *ctx, const char *name, int namlen, loff_t
 int scan_directory(const char *dir_path, struct monitored_entry **entries) {
     struct file *dir;
     struct dir_context_data ctx_data = {
-        .entries = entries,
-        .dir_path = dir_path,
-    };
-    struct dir_context ctx = {
-        .actor = filldir,
-        .pos = 0,
+        .ctx.actor = filldir,  // Imposta il callback corretto nel contesto
+        .ctx.pos = 0,          // Posizione iniziale
+        .entries = entries,    // Lista collegata per le entries
+        .dir_path = dir_path,  // Path della directory da scansionare
     };
     int err;
 
@@ -365,7 +363,7 @@ int scan_directory(const char *dir_path, struct monitored_entry **entries) {
         return PTR_ERR(dir);
     }
 
-    err = iterate_dir(dir, &ctx);
+    err = iterate_dir(dir, &ctx_data.ctx);
     if (err < 0) {
         printk(KERN_ERR "Failed to iterate directory: %s\n", dir_path);
     }
