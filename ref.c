@@ -1,7 +1,3 @@
-//problema con mutex_lock nel vfs nella read
-//lista per i path
-//directory hash
-
 #include <linux/fs.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
