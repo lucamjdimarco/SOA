@@ -57,7 +57,7 @@ struct r_monitor {
 
 struct r_monitor monitor = {
     .head = NULL,
-    .password = "default",
+    .password = NULL,
     //.last_index = -1,
     .mode = 0,
 };
