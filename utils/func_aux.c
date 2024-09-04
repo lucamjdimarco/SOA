@@ -259,37 +259,37 @@ char *get_absolute_path(const char *user_path) {
     return resolved_path;
 }
 
-//Funzione per verificare se un percorso è una directory
-int is_directory(const char *path) {
-    struct path path_struct;
-    struct kstat stat;
-    int err;
+// //Funzione per verificare se un percorso è una directory
+// int is_directory(const char *path) {
+//     struct path path_struct;
+//     struct kstat stat;
+//     int err;
 
-    // Ottieni la struttura di path
-    err = kern_path(path, LOOKUP_FOLLOW, &path_struct);
-    if (err) {
-        printk(KERN_ERR "Failed to get path: %d\n", err);
-        return err;
-    }
+//     // Ottieni la struttura di path
+//     err = kern_path(path, LOOKUP_FOLLOW, &path_struct);
+//     if (err) {
+//         printk(KERN_ERR "Failed to get path: %d\n", err);
+//         return err;
+//     }
 
-    // Usa vfs_stat per ottenere le informazioni sul file/directory
-    err = vfs_getattr(&path_struct, &stat, STATX_TYPE, AT_STATX_SYNC_AS_STAT);
-    if (err) {
-        printk(KERN_ERR "vfs_getattr failed: %d\n", err);
-        path_put(&path_struct);
-        return err;
-    }
+//     // Usa vfs_stat per ottenere le informazioni sul file/directory
+//     err = vfs_getattr(&path_struct, &stat, STATX_TYPE, AT_STATX_SYNC_AS_STAT);
+//     if (err) {
+//         printk(KERN_ERR "vfs_getattr failed: %d\n", err);
+//         path_put(&path_struct);
+//         return err;
+//     }
 
-    // Rilascia la struttura di path
-    path_put(&path_struct);
+//     // Rilascia la struttura di path
+//     path_put(&path_struct);
 
-    // Verifica se il tipo è una directory
-    if (S_ISDIR(stat.mode)) {
-        return 1;  // È una directory
-    } else {
-        return 0;  // Non è una directory
-    }
-}
+//     // Verifica se il tipo è una directory
+//     if (S_ISDIR(stat.mode)) {
+//         return 1;  // È una directory
+//     } else {
+//         return 0;  // Non è una directory
+//     }
+// }
 
 
 
