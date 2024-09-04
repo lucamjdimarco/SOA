@@ -117,6 +117,19 @@ static inline bool is_root_uid(void) {
     #endif
 }
 
+/*##################################################*/
+void print_entries(struct monitored_entry *entries) {
+    struct monitored_entry *current = entries;
+
+    printk(KERN_INFO "List of monitored entries:\n");
+
+    while (current) {
+        printk(KERN_INFO "Path: %s\n", current->path);
+        current = current->next;
+    }
+}
+/*##################################################*/
+
 // Funzione per verificare se un percorso è protetto
 bool is_protected_path(const char *path) {
     struct path_node *cur_node; 
@@ -899,17 +912,6 @@ void setMonitorREC_OFF() {
             break;
         default:
             printk(KERN_ERR "Error: invalid mode\n");
-    }
-}
-
-void print_entries(struct monitored_entry *entries) {
-    struct monitored_entry *current = entries;
-
-    printk(KERN_INFO "List of monitored entries:\n");
-
-    while (current) {
-        printk(KERN_INFO "Path: %s\n", current->path);
-        current = current->next;
     }
 }
 
