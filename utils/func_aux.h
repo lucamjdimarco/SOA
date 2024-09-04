@@ -10,6 +10,7 @@ struct monitored_entry {
 struct dir_context_data {
     struct monitored_entry **entries;
     const char *dir_path;
+    struct dir_context ctx;
 };
 /*##################################################*/
 
