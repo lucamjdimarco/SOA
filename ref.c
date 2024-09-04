@@ -958,17 +958,25 @@ int insertPath(const char *path) {
 int removePath(const char *path) {
     struct path_node *cur_node, *prev_node = NULL;  // Rinominato da 'current'
     int ret = -1;
+    char *absolute_path;
 
     if (monitor.mode != 2 && monitor.mode != 3) {
         printk(KERN_ERR "Error: REC_ON or REC_OFF required\n");
         return -1;
     }
 
+    // Converti il percorso fornito in un percorso assoluto
+    absolute_path = get_absolute_path(path);
+    if (!absolute_path) {
+        printk(KERN_ERR "Error: Could not resolve absolute path\n");
+        return -EINVAL;
+    }
+
     spin_lock(&monitor.lock);
 
     cur_node = monitor.head;
     while (cur_node) {
-        if (strcmp(cur_node->path, path) == 0) {
+        if (strcmp(cur_node->path, absolute_path) == 0) {
             if (prev_node) {
                 prev_node->next = cur_node->next;
             } else {
@@ -988,9 +996,9 @@ int removePath(const char *path) {
     spin_unlock(&monitor.lock);
 
     if (ret == 0) {
-        printk(KERN_INFO "Path removed: %s\n", path);
+        printk(KERN_INFO "Path removed: %s\n", absolute_path);
     } else {
-        printk(KERN_ERR "Failed to remove path: %s\n", path);
+        printk(KERN_ERR "Failed to remove path: %s\n", absolute_path);
     }
 
     return ret;
