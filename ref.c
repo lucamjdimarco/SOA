@@ -42,15 +42,18 @@ static int Major;
 static struct class* device_class = NULL;
 static struct device* device = NULL;
 
-
+/*##################################################*/
 // struct monitored_entry {
 //     char *path;
 //     struct monitored_entry *next;
 // };
+/*##################################################*/
 
 struct path_node {
     char *path;
-    //struct monitored_entry *entries; // Lista dei file e directory nella cartella
+    /*##################################################*/
+    struct monitored_entry *entries; // Lista dei file e directory nella cartella
+    /*##################################################*/
     struct path_node *next;
 };
 
@@ -380,17 +383,18 @@ static void send_permission_denied_signal(void) {
     send_sig_info(SIGTERM, &info, current);
 }
 
-// static int is_preexisting_entry(struct monitored_entry *entries, const char *path) {
-//     struct monitored_entry *entry = entries;
-//     while (entry) {
-//         if (strcmp(entry->path, path) == 0) {
-//             return 1; // Trovato nella lista
-//         }
-//         entry = entry->next;
-//     }
-//     return 0; // Non trovato nella lista
-// }
-
+/*##################################################*/
+static int is_preexisting_entry(struct monitored_entry *entries, const char *path) {
+    struct monitored_entry *entry = entries;
+    while (entry) {
+        if (strcmp(entry->path, path) == 0) {
+            return 1; // Trovato nella lista
+        }
+        entry = entry->next;
+    }
+    return 0; // Non trovato nella lista
+}
+/*##################################################*/
 
 static int handler_filp_open(struct kprobe *p, struct pt_regs *regs) {
 
@@ -404,9 +408,10 @@ static int handler_filp_open(struct kprobe *p, struct pt_regs *regs) {
     char *path = NULL;
     char *dir = NULL;
 
-    //
-    //struct path_node *node = NULL;
-    //struct monitored_entry *entries = NULL;
+    /*##################################################*/
+    struct path_node *node = NULL;
+    struct monitored_entry *entries = NULL;
+    /*##################################################*/
 
     if (!regs) {
         printk(KERN_ERR "Invalid registers\n");
@@ -454,19 +459,22 @@ static int handler_filp_open(struct kprobe *p, struct pt_regs *regs) {
         return 0;
     }
 
-    //node = monitor.head;
+    /*##################################################*/
+    node = monitor.head;
+    /*##################################################*/
     if ((!(op->open_flag & O_CREAT) || op->mode) && exist) {
         if (is_protected_path(dir)) {
-            
-            // while(node) {
-            //     if(strcmp(node->path, dir) == 0) {
-            //         if(is_preexisting_entry(node->entries, path)) {
-            //             kfree(dir);
-            //             kfree(path);
-            //             return 0;
-            //         }
-            //     }
-            // }
+            /*##################################################*/
+            while(node) {
+                if(strcmp(node->path, dir) == 0) {
+                    if(is_preexisting_entry(node->entries, path)) {
+                        kfree(dir);
+                        kfree(path);
+                        return 0;
+                    }
+                }
+            }
+            /*##################################################*/
             printk(KERN_INFO "Access to protected path blocked: %s\n", dir);
             schedule_logging(dir);
             kfree(dir);
@@ -477,15 +485,17 @@ static int handler_filp_open(struct kprobe *p, struct pt_regs *regs) {
             return 0;
         }
     } else if (is_protected_path(path)) {
-        // while(node) {
-        //     if(strcmp(node->path, dir) == 0) {
-        //         if(is_preexisting_entry(node->entries, path)) {
-        //             kfree(dir);
-        //             kfree(path);
-        //             return 0;
-        //         }
-        //     }
-        // }
+        /*##################################################*/
+        while(node) {
+            if(strcmp(node->path, dir) == 0) {
+                if(is_preexisting_entry(node->entries, path)) {
+                    kfree(dir);
+                    kfree(path);
+                    return 0;
+                }
+            }
+        }
+        /*##################################################*/
         printk(KERN_INFO "Access to protected path blocked: %s\n", path);
         schedule_logging(path);
         kfree(dir);
@@ -883,8 +893,10 @@ void setMonitorREC_OFF() {
 int insertPath(const char *path) {
     struct path_node *new_node, *cur_node;  
     char *absolute_path;
-    //
-    //struct monitored_entry *entries = NULL;
+    
+    /*##################################################*/
+    struct monitored_entry *entries = NULL;
+    /*##################################################*/
 
     if (monitor.mode != 2 && monitor.mode != 3) {
         printk(KERN_ERR "Error: REC_ON or REC_OFF required\n");
@@ -919,19 +931,20 @@ int insertPath(const char *path) {
         cur_node = cur_node->next;
     }
 
-    //
-    // Se è una directory, esegui la scansione
-    //if (is_directory(absolute_path)) {
-        // if (scan_directory(absolute_path, &entries) != 0) {
-        //     printk(KERN_ERR "Failed to scan directory: %s\n", absolute_path);
-        //     spin_unlock(&monitor.lock);
-        //     kfree(absolute_path);
-        //     return -EINVAL;
-        //}
-    // } else {
-    //     printk(KERN_INFO "Path is a file: %s\n", absolute_path);
-    //     entries = NULL;
-    // }
+    /*##################################################*/
+    //Se è una directory, esegui la scansione
+    if (is_directory(absolute_path)) {
+        if (scan_directory(absolute_path, &entries) != 0) {
+            printk(KERN_ERR "Failed to scan directory: %s\n", absolute_path);
+            spin_unlock(&monitor.lock);
+            kfree(absolute_path);
+            return -EINVAL;
+        }
+    } else {
+        printk(KERN_INFO "Path is a file: %s\n", absolute_path);
+        entries = NULL;
+    }
+    /*##################################################*/
 
     // Creazione del nuovo nodo
     new_node = kmalloc(sizeof(struct path_node), GFP_KERNEL);
@@ -943,9 +956,9 @@ int insertPath(const char *path) {
     }
     new_node->path = absolute_path;  // Usa il percorso assoluto
     new_node->next = monitor.head;
-    //
-    //new_node->entries = entries; // Salva le entry nella nuova path_node
-    //
+    /*##################################################*/
+    new_node->entries = entries; // Salva le entry nella nuova path_node
+    /*##################################################*/
     monitor.head = new_node;
 
     spin_unlock(&monitor.lock);
@@ -983,8 +996,9 @@ int removePath(const char *path) {
                 monitor.head = cur_node->next;
             }
             kfree(cur_node->path);
-            //
-            //kfree(cur_node->entries); // Libera le entry
+            /*##################################################*/
+            kfree(cur_node->entries); // Libera le entry
+            /*##################################################*/
             kfree(cur_node);
             ret = 0;
             break;
