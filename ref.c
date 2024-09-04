@@ -97,10 +97,6 @@ int changePassword(char *new_password);
 int insertPath(const char *path);
 int removePath(const char *path);
 
-/*##################################################*/
-void print_entries(struct monitored_entry *entries);
-/*##################################################*/
-
 // Workqueue for deferred logging
 static struct workqueue_struct *log_wq;
 typedef struct {
@@ -117,18 +113,7 @@ static inline bool is_root_uid(void) {
     #endif
 }
 
-/*##################################################*/
-void print_entries(struct monitored_entry *entries) {
-    struct monitored_entry *current = entries;
 
-    printk(KERN_INFO "List of monitored entries:\n");
-
-    while (current) {
-        printk(KERN_INFO "Path: %s\n", current->path);
-        current = current->next;
-    }
-}
-/*##################################################*/
 
 // Funzione per verificare se un percorso è protetto
 bool is_protected_path(const char *path) {
@@ -923,6 +908,7 @@ int insertPath(const char *path) {
     
     /*##################################################*/
     struct monitored_entry *entries = NULL;
+    struct monitored_entry *current = NULL;
     /*##################################################*/
 
     if (monitor.mode != 2 && monitor.mode != 3) {
@@ -968,8 +954,14 @@ int insertPath(const char *path) {
             return -EINVAL;
         }
 
-        printk(KERN_INFO "Path TROVATI: \n");
-        print_entries(entries);
+        printk(KERN_INFO "List of monitored entries:\n");
+
+        current = entries;
+
+        while (current) {
+            printk(KERN_INFO "Path: %s\n", current->path);
+            current = current->next;
+        }
     } else {
         printk(KERN_INFO "Path is a file: %s\n", absolute_path);
         entries = NULL;
