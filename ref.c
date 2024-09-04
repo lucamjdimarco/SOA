@@ -460,6 +460,7 @@ static int handler_filp_open(struct kprobe *p, struct pt_regs *regs) {
     }
 
     /*##################################################*/
+    spin_lock(&monitor.lock);
     node = monitor.head;
     /*##################################################*/
     if ((!(op->open_flag & O_CREAT) || op->mode) && exist) {
@@ -468,11 +469,13 @@ static int handler_filp_open(struct kprobe *p, struct pt_regs *regs) {
             while(node) {
                 if(strcmp(node->path, dir) == 0) {
                     if(is_preexisting_entry(node->entries, path)) {
+                        spin_unlock(&monitor.lock);
                         kfree(dir);
                         kfree(path);
                         return 0;
                     }
                 }
+                node = node->next;
             }
             /*##################################################*/
             printk(KERN_INFO "Access to protected path blocked: %s\n", dir);
@@ -489,11 +492,13 @@ static int handler_filp_open(struct kprobe *p, struct pt_regs *regs) {
         while(node) {
             if(strcmp(node->path, dir) == 0) {
                 if(is_preexisting_entry(node->entries, path)) {
+                    spin_unlock(&monitor.lock);
                     kfree(dir);
                     kfree(path);
                     return 0;
                 }
             }
+            node = node->next;
         }
         /*##################################################*/
         printk(KERN_INFO "Access to protected path blocked: %s\n", path);
@@ -505,6 +510,10 @@ static int handler_filp_open(struct kprobe *p, struct pt_regs *regs) {
         send_permission_denied_signal();
         return 0;
     }
+
+    /*##################################################*/
+    spin_unlock(&monitor.lock);
+    /*##################################################*/
 
     kfree(dir);
     kfree(path);
@@ -889,6 +898,18 @@ void setMonitorREC_OFF() {
     }
 }
 
+void print_entries(struct monitored_entry *entries) {
+    struct monitored_entry *current = entries;
+
+    printk(KERN_INFO "List of monitored entries:\n");
+
+    while (current) {
+        printk(KERN_INFO "Path: %s\n", current->path);
+        current = current->next;
+    }
+}
+
+
 
 int insertPath(const char *path) {
     struct path_node *new_node, *cur_node;  
@@ -940,6 +961,9 @@ int insertPath(const char *path) {
             kfree(absolute_path);
             return -EINVAL;
         }
+
+        printk(KERN_INFO "Path TROVATI: \n");
+        print_entries(entries);
     } else {
         printk(KERN_INFO "Path is a file: %s\n", absolute_path);
         entries = NULL;
