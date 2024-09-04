@@ -908,7 +908,7 @@ int insertPath(const char *path) {
     
     /*##################################################*/
     struct monitored_entry *entries = NULL;
-    struct monitored_entry *current = NULL;
+    //struct monitored_entry *current = NULL;
     /*##################################################*/
 
     if (monitor.mode != 2 && monitor.mode != 3) {
@@ -956,12 +956,12 @@ int insertPath(const char *path) {
 
         printk(KERN_INFO "List of monitored entries:\n");
 
-        current = entries;
+        //current = entries;
 
-        while (current) {
-            printk(KERN_INFO "Path: %s\n", current->path);
-            current = current->next;
-        }
+        // while (current) {
+        //     printk(KERN_INFO "Path: %s\n", current->path);
+        //     current = current->next;
+        // }
     } else {
         printk(KERN_INFO "Path is a file: %s\n", absolute_path);
         entries = NULL;
@@ -982,6 +982,11 @@ int insertPath(const char *path) {
     new_node->entries = entries; // Salva le entry nella nuova path_node
     /*##################################################*/
     monitor.head = new_node;
+
+    while(entries) {
+        printk(KERN_INFO "Path inserted: %s\n", entries->path);
+        entries = entries->next;
+    }
 
     spin_unlock(&monitor.lock);
 
