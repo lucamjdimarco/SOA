@@ -953,15 +953,6 @@ int insertPath(const char *path) {
             kfree(absolute_path);
             return -EINVAL;
         }
-
-        printk(KERN_INFO "List of monitored entries:\n");
-
-        //current = entries;
-
-        // while (current) {
-        //     printk(KERN_INFO "Path: %s\n", current->path);
-        //     current = current->next;
-        // }
     } else {
         printk(KERN_INFO "Path is a file: %s\n", absolute_path);
         entries = NULL;
@@ -983,10 +974,12 @@ int insertPath(const char *path) {
     /*##################################################*/
     monitor.head = new_node;
 
+    /*##################################################*/
     while(entries) {
         printk(KERN_INFO "Path inserted: %s\n", entries->path);
         entries = entries->next;
     }
+    /*##################################################*/
 
     spin_unlock(&monitor.lock);
 

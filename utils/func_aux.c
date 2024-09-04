@@ -326,6 +326,11 @@ static int filldir(struct dir_context *ctx, const char *name, int namlen, loff_t
         return 0;
     }
 
+    //Skip root directory 
+    if(offset == 0) {
+        return 0;
+    }
+
     // Crea una nuova entry
     entry = kmalloc(sizeof(struct monitored_entry), GFP_KERNEL);
     if (!entry) {
