@@ -26,10 +26,10 @@
 #include "utils/func_aux.h"
 
 #define PATH 512
-#define MAX_LEN 50
+//#define MAX_LEN 50
 #define PASS_LEN 32
 #define SHA256_LENGTH 32
-#define TABLE_ENTRIES 7
+//#define TABLE_ENTRIES 7
 #define SALT_LENGTH 16
 
 #define DEVICE_NAME "ref_monitor"
@@ -57,8 +57,6 @@ struct r_monitor {
 
 struct r_monitor monitor = {
     .head = NULL,
-    //.password = "",
-    //.last_index = -1,
     .mode = 0,
 };
 
@@ -399,7 +397,7 @@ static int handler_filp_open(struct kprobe *p, struct pt_regs *regs) {
         return 0;
     }
 
-    if(strncmp_custom(path_kernel, "/run", 4) == 0) {
+    if(strncmp(path_kernel, "/run", 4) == 0) {
         return 0;
     }
 
@@ -476,7 +474,7 @@ static int handler_rmdir(struct kprobe *p, struct pt_regs *regs) {
 	const char *path_kernel = ((struct filename *)(regs->si))->name;
 
     char *ret_ptr = NULL;
-    char *dir = NULL;
+    //char *dir = NULL;
 
     if (!regs) {
         printk(KERN_ERR "Invalid registers\n");
@@ -503,25 +501,22 @@ static int handler_rmdir(struct kprobe *p, struct pt_regs *regs) {
     }
 
     
-    dir = find_directory(ret_ptr);
-    if (!dir) {
-        dir = get_pwd();
-    }
+    // dir = find_directory(ret_ptr);
+    // if (!dir) {
+    //     dir = get_pwd();
+    // }
 
-    if (!dir) {
-        printk(KERN_ERR "Failed to determine directory\n");
-        kfree(ret_ptr);
-        regs->ax = -EACCES;
-        return 0;
-    }
-
-    //printk(KERN_INFO "rmdir: path: %s\n", ret_ptr);
-    //printk(KERN_INFO "rmdir: dir: %s\n", dir);
+    // if (!dir) {
+    //     printk(KERN_ERR "Failed to determine directory\n");
+    //     kfree(ret_ptr);
+    //     regs->ax = -EACCES;
+    //     return 0;
+    // }
 
     if (is_protected_path(ret_ptr)) {
         printk(KERN_INFO "Access to protected path blocked: %s\n", ret_ptr);
         schedule_logging(ret_ptr);
-        kfree(dir);
+        //kfree(dir);
         kfree(ret_ptr);
         regs->di = (unsigned long)NULL;
         regs->ax = -EACCES;
@@ -529,7 +524,7 @@ static int handler_rmdir(struct kprobe *p, struct pt_regs *regs) {
         return 0;
     }
 
-    kfree(dir);
+    //kfree(dir);
     kfree(ret_ptr);
     return 0;
 }
@@ -541,7 +536,7 @@ static int handler_mkdirat(struct kprobe *p, struct pt_regs *regs) {
     const char *path_kernel = ((struct filename *)(regs->si))->name;
 
     char *ret_ptr = NULL;
-    char *dir = NULL;
+    //char *dir = NULL;
 
     if (!regs) {
         printk(KERN_ERR "Invalid registers\n");
@@ -567,22 +562,22 @@ static int handler_mkdirat(struct kprobe *p, struct pt_regs *regs) {
         }
     }
 
-    dir = find_directory(ret_ptr);
-    if (!dir) {
-        dir = get_pwd();
-    }
+    // dir = find_directory(ret_ptr);
+    // if (!dir) {
+    //     dir = get_pwd();
+    // }
 
-    if (!dir) {
-        printk(KERN_ERR "Failed to determine directory\n");
-        kfree(ret_ptr);
-        regs->ax = -EACCES;
-        return 0;
-    }
+    // if (!dir) {
+    //     printk(KERN_ERR "Failed to determine directory\n");
+    //     kfree(ret_ptr);
+    //     regs->ax = -EACCES;
+    //     return 0;
+    // }
 
-    if (is_protected_path(dir)) {
-        printk(KERN_INFO "Access to protected path blocked: %s\n", dir);
-        schedule_logging(dir);
-        kfree(dir);
+    if (is_protected_path(ret_ptr)) {
+        printk(KERN_INFO "Access to protected path blocked: %s\n", ret_ptr);
+        schedule_logging(ret_ptr);
+        //kfree(dir);
         kfree(ret_ptr);
         regs->di = (unsigned long)NULL;
         regs->ax = -EACCES;
@@ -590,7 +585,7 @@ static int handler_mkdirat(struct kprobe *p, struct pt_regs *regs) {
         return 0;
     }
     
-    kfree(dir);
+    //kfree(dir);
     kfree(ret_ptr);
     return 0;
 }
@@ -604,7 +599,7 @@ static int handler_unlinkat(struct kprobe *p, struct pt_regs *regs) {
 	const char *path_kernel = ((struct filename *)(regs->si))->name;
 
     char *ret_ptr = NULL;
-    char *dir = NULL;
+    //char *dir = NULL;
     //bool is_dir = false;
 
     if (!regs) {
@@ -631,43 +626,9 @@ static int handler_unlinkat(struct kprobe *p, struct pt_regs *regs) {
         }
     }
 
-    dir = find_directory(ret_ptr);
-    if (!dir) {
-        dir = get_pwd();
-    }
-
-    if (!dir) {
-        printk(KERN_ERR "Failed to determine directory\n");
-        kfree(ret_ptr);
-        regs->ax = -EACCES;
-        return 0;
-    }
-
-    printk(KERN_INFO "Unlinkat: path: %s\n", ret_ptr);
-    printk(KERN_INFO "Unlinkat: dir: %s\n", dir);
-
-    //if (is_protected_path(dir)) {
-    if (is_protected_path(ret_ptr)) {
-        printk(KERN_INFO "Access to protected path blocked: %s\n", ret_ptr);
-        schedule_logging(ret_ptr);
-        kfree(dir);
-        kfree(ret_ptr);
-        regs->di = (unsigned long)NULL;
-        regs->ax = -EACCES;
-        send_permission_denied_signal();
-        return 0;
-    }
-
-    // ###################################
-    // is_dir = is_directory(ret_ptr);
-
-    // if (is_dir) {
-    //     dir = kstrdup(ret_ptr, GFP_KERNEL);
-    // } else {
-    //     dir = find_directory(ret_ptr);
-    //     if (!dir) {
-    //         dir = get_pwd();
-    //     }
+    // dir = find_directory(ret_ptr);
+    // if (!dir) {
+    //     dir = get_pwd();
     // }
 
     // if (!dir) {
@@ -677,22 +638,22 @@ static int handler_unlinkat(struct kprobe *p, struct pt_regs *regs) {
     //     return 0;
     // }
 
-    // if (is_protected_path(is_dir ? dir : ret_ptr)) {
-    //     printk(KERN_INFO "Access to protected path blocked: %s\n", is_dir ? dir : ret_ptr);
-    //     schedule_logging(is_dir ? dir : ret_ptr);
-    //     kfree(dir);
-    //     kfree(ret_ptr);
-    //     regs->di = (unsigned long)NULL;
-    //     regs->ax = -EACCES;
-    //     send_permission_denied_signal();
-    //     return 0;
-    // }
+    // printk(KERN_INFO "Unlinkat: path: %s\n", ret_ptr);
+    // printk(KERN_INFO "Unlinkat: dir: %s\n", dir);
 
+    //if (is_protected_path(dir)) {
+    if (is_protected_path(ret_ptr)) {
+        printk(KERN_INFO "Access to protected path blocked: %s\n", ret_ptr);
+        schedule_logging(ret_ptr);
+        //kfree(dir);
+        kfree(ret_ptr);
+        regs->di = (unsigned long)NULL;
+        regs->ax = -EACCES;
+        send_permission_denied_signal();
+        return 0;
+    }
 
-
-    // ###################################
-
-    kfree(dir);
+    //kfree(dir);
     kfree(ret_ptr);
     return 0;
 }
