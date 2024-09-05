@@ -595,7 +595,7 @@ static int handler_unlinkat(struct kprobe *p, struct pt_regs *regs) {
 
     char *ret_ptr = NULL;
     char *dir = NULL;
-    bool is_dir = false;
+    //bool is_dir = false;
 
     if (!regs) {
         printk(KERN_ERR "Invalid registers\n");
@@ -632,6 +632,9 @@ static int handler_unlinkat(struct kprobe *p, struct pt_regs *regs) {
         regs->ax = -EACCES;
         return 0;
     }
+
+    printk(KERN_INFO "Unlinkat: path: %s\n", ret_ptr);
+    printk(KERN_INFO "Unlinkat: dir: %s\n", dir);
 
     //if (is_protected_path(dir)) {
     if (is_protected_path(dir)) {
