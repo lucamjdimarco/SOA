@@ -107,7 +107,7 @@ static inline bool is_root_uid(void) {
 
 // Funzione per verificare se un percorso è protetto
 bool is_protected_path(const char *path) {
-    struct path_node *cur_node; 
+    struct path_node *cur_node;
     bool protected = false;
 
     spin_lock(&monitor.lock);
@@ -115,10 +115,17 @@ bool is_protected_path(const char *path) {
     // Scorre la lista per cercare una corrispondenza
     cur_node = monitor.head;
     while (cur_node) {
-        if (strncmp(cur_node->path, path, strlen(cur_node->path)) == 0) {
-            protected = true;
-            break;
+        size_t path_len = strlen(cur_node->path);
+
+        // Verifica se path inizia con cur_node->path
+        if (strncmp(cur_node->path, path, path_len) == 0) {
+            // Controlla se il carattere successivo è un '/' o la fine della stringa
+            if (path[path_len] == '\0' || path[path_len] == '/') {
+                protected = true;
+                break;
+            }
         }
+
         cur_node = cur_node->next;
     }
 
