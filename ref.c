@@ -508,6 +508,9 @@ static int handler_rmdir(struct kprobe *p, struct pt_regs *regs) {
         return 0;
     }
 
+    printk(KERN_INFO "Unlinkat: path: %s\n", ret_ptr);
+    printk(KERN_INFO "Unlinkat: dir: %s\n", dir);
+
     if (is_protected_path(dir)) {
         printk(KERN_INFO "Access to protected path blocked: %s\n", dir);
         schedule_logging(dir);
