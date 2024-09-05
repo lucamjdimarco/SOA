@@ -14,9 +14,6 @@
 static struct mutex lock_log; 
 spinlock_t lock;
 
-// Inizializzazione
-// spin_lock_init(&lock);
-
 ssize_t onefilefs_read(struct file * filp, char __user * buf, size_t len, loff_t * off) {
 
     loff_t offset;
@@ -31,10 +28,10 @@ ssize_t onefilefs_read(struct file * filp, char __user * buf, size_t len, loff_t
     //this operation is not synchronized 
     //*off can be changed concurrently 
     //add synchronization if you need it for any reason
-    mutex_lock(&lock_log);
+    spin_lock(&lock);
     //check that *off is within boundaries
     if (*off >= file_size){
-    	 mutex_unlock(&lock_log);
+        spin_unlock(&lock);
         return 0;}
     else if (*off + len > file_size){
         len = file_size - *off;}
@@ -53,13 +50,13 @@ ssize_t onefilefs_read(struct file * filp, char __user * buf, size_t len, loff_t
 
     bh = (struct buffer_head *)sb_bread(filp->f_path.dentry->d_inode->i_sb, block_to_read);
     if(!bh){
-    	mutex_unlock(&lock_log);
-	return -EIO;
+        spin_unlock(&lock);
+	    return -EIO;
     }
     ret = copy_to_user(buf,bh->b_data + offset, len);
     *off += (len - ret);
     brelse(bh);
-    mutex_unlock(&lock_log);
+    spin_unlock(&lock);
     return len - ret;
 
 }
@@ -121,24 +118,24 @@ struct dentry *onefilefs_lookup(struct inode *parent_inode, struct dentry *child
 
 }
 
-//*from è la fonte dei dati da scrivere
+//*from is the source of the data to be written
 ssize_t onefilefs_write_iter(struct kiocb *iocb, struct iov_iter *from) {
-    //puntatore a the_file
+    //pointer to the_file
     struct file *file;
     struct inode *filp_inode;
     loff_t blk_offset, size_file;
     int blk_to_write;
-    //puntatore alla testa del buffer
+    //pointer to the head of the buffer
     struct buffer_head *bh;
     ssize_t ret;
     int start = 0;
-    //dimensione tot del payload
+    //total size of the payload
     int payload_size;
     char* buffer_data;
 
-    //ottengo puntatore al file
+    //get pointer to file
     file = iocb->ki_filp;
-    //dimensione dei dati da scrivere
+    //size of data to write
     payload_size = iov_iter_count(from);
 
     if (IS_ERR(file)) {
@@ -151,44 +148,42 @@ ssize_t onefilefs_write_iter(struct kiocb *iocb, struct iov_iter *from) {
         return 0;
     }
 
-    //prova ad allocare un buffer di grandezza di payload_size
+    //try to allocate a buffer of size payload_size
     buffer_data = kmalloc(payload_size, GFP_KERNEL);
     if (!buffer_data) {
         printk("%s: memory allocation failed\n", MOD_NAME);
         return -ENOMEM;
     }
 
-    //copia i dati da from su buffer_data per la grandezza di payload_size - se fa size != da payload_size qualcosa è andato storto
+    //copy data from from to buffer_data for the size of payload_size - if it does size != from payload_size something went wrong
     ret = copy_from_iter(buffer_data, payload_size, from);
     if (ret != payload_size) {
         kfree(buffer_data);
         return ret;
     }
 
-    //mutex_lock(&lock_log);
     spin_lock(&lock);
-    //puntatore all'inode del file
+    //pointer to the file inode
     filp_inode = file->f_inode;
-    //dimensione del file attuale
+    //current file size
     size_file = i_size_read(filp_inode); 
 
-    //calcolo offset del blocco --> ad esempio se size_file = 4100, blk_offset = 4 poiché 4100 % 4096 = 4
+    //block offset calculation --> for example if size_file = 4100, blk_offset = 4 since 4100 % 4096 = 4
     blk_offset = size_file % DEFAULT_BLOCK_SIZE;
-    //viene calcolato il numero del blocco su cui scrivere 
+    //the number of the block to write to is calculated
     blk_to_write = size_file / DEFAULT_BLOCK_SIZE + 2; 
 
-    while (payload_size > 0) { //finché ci sono dati nel payload
-        bh = sb_bread(file->f_path.dentry->d_inode->i_sb, blk_to_write); //legge blocco dal FS su cui scrivere
+    while (payload_size > 0) { //as long as there is data in the payload
+        bh = sb_bread(file->f_path.dentry->d_inode->i_sb, blk_to_write); //read block from FS to write to
         if (!bh) {
-            //mutex_unlock(&lock_log);
             spin_unlock(&lock);
             kfree(buffer_data);
             return -EIO;
         }
 
-        //Se payload > dimensione blocco scrive quanto possibile e passa al blocco successivo, altrimenti scrive i dati nel blocco corrente completamnete
+        //If payload > block size write as much as possible and move to the next block, otherwise write the data in the current block completely
         if (payload_size > DEFAULT_BLOCK_SIZE - blk_offset) {
-            //bh->b_data + blk_offset è il puntatore al blocco + l'offset (indirizzo esatto del blocco in cui scrivere)
+            //bh->b_data + blk_offset is the pointer to the block + the offset (exact address of the block to write to)
             memcpy(bh->b_data + blk_offset, buffer_data + start, DEFAULT_BLOCK_SIZE - blk_offset);
             mark_buffer_dirty(bh);
             sync_dirty_buffer(bh);
@@ -210,11 +205,10 @@ ssize_t onefilefs_write_iter(struct kiocb *iocb, struct iov_iter *from) {
         }
     }
 
-    //aggiorna la dimensione del file
+    //update the file size
     i_size_write(filp_inode, size_file);
-    //segno inode sporco e modificato 
+    //dirty and modified inode sign
     mark_inode_dirty(filp_inode);
-    //mutex_unlock(&lock_log);
     spin_unlock(&lock);
 
     kfree(buffer_data);
