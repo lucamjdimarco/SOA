@@ -536,7 +536,7 @@ static int handler_mkdirat(struct kprobe *p, struct pt_regs *regs) {
     const char *path_kernel = ((struct filename *)(regs->si))->name;
 
     char *ret_ptr = NULL;
-    //char *dir = NULL;
+    char *dir = NULL;
 
     if (!regs) {
         printk(KERN_ERR "Invalid registers\n");
@@ -562,22 +562,22 @@ static int handler_mkdirat(struct kprobe *p, struct pt_regs *regs) {
         }
     }
 
-    // dir = find_directory(ret_ptr);
-    // if (!dir) {
-    //     dir = get_pwd();
-    // }
+    dir = find_directory(ret_ptr);
+    if (!dir) {
+        dir = get_pwd();
+    }
 
-    // if (!dir) {
-    //     printk(KERN_ERR "Failed to determine directory\n");
-    //     kfree(ret_ptr);
-    //     regs->ax = -EACCES;
-    //     return 0;
-    // }
+    if (!dir) {
+        printk(KERN_ERR "Failed to determine directory\n");
+        kfree(ret_ptr);
+        regs->ax = -EACCES;
+        return 0;
+    }
 
-    if (is_protected_path(ret_ptr)) {
-        printk(KERN_INFO "Access to protected path blocked: %s\n", ret_ptr);
+    if (is_protected_path(dir)) {
+        printk(KERN_INFO "Access to protected path blocked: %s\n", dir);
         schedule_logging(ret_ptr);
-        //kfree(dir);
+        kfree(dir);
         kfree(ret_ptr);
         regs->di = (unsigned long)NULL;
         regs->ax = -EACCES;
@@ -585,7 +585,7 @@ static int handler_mkdirat(struct kprobe *p, struct pt_regs *regs) {
         return 0;
     }
     
-    //kfree(dir);
+    kfree(dir);
     kfree(ret_ptr);
     return 0;
 }
