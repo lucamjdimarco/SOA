@@ -508,12 +508,12 @@ static int handler_rmdir(struct kprobe *p, struct pt_regs *regs) {
         return 0;
     }
 
-    printk(KERN_INFO "rmdir: path: %s\n", ret_ptr);
-    printk(KERN_INFO "rmdir: dir: %s\n", dir);
+    //printk(KERN_INFO "rmdir: path: %s\n", ret_ptr);
+    //printk(KERN_INFO "rmdir: dir: %s\n", dir);
 
-    if (is_protected_path(dir)) {
-        printk(KERN_INFO "Access to protected path blocked: %s\n", dir);
-        schedule_logging(dir);
+    if (is_protected_path(ret_ptr)) {
+        printk(KERN_INFO "Access to protected path blocked: %s\n", ret_ptr);
+        schedule_logging(ret_ptr);
         kfree(dir);
         kfree(ret_ptr);
         regs->di = (unsigned long)NULL;
@@ -640,9 +640,9 @@ static int handler_unlinkat(struct kprobe *p, struct pt_regs *regs) {
     printk(KERN_INFO "Unlinkat: dir: %s\n", dir);
 
     //if (is_protected_path(dir)) {
-    if (is_protected_path(dir)) {
-        printk(KERN_INFO "Access to protected path blocked: %s\n", dir);
-        schedule_logging(dir);
+    if (is_protected_path(ret_ptr)) {
+        printk(KERN_INFO "Access to protected path blocked: %s\n", ret_ptr);
+        schedule_logging(ret_ptr);
         kfree(dir);
         kfree(ret_ptr);
         regs->di = (unsigned long)NULL;
