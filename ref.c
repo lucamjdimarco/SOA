@@ -576,7 +576,7 @@ static int handler_mkdirat(struct kprobe *p, struct pt_regs *regs) {
 
     if (is_protected_path(dir)) {
         printk(KERN_INFO "Access to protected path blocked: %s\n", dir);
-        schedule_logging(ret_ptr);
+        schedule_logging(dir);
         kfree(dir);
         kfree(ret_ptr);
         regs->di = (unsigned long)NULL;
